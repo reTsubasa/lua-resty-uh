@@ -57,7 +57,9 @@ http {
 }
 ```
 
-# 
+# Install
+
+`luarocks install lua-resty-uh`
 
 # Methods
 

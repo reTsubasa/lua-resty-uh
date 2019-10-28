@@ -1,6 +1,8 @@
 # Name
 
-some modify  for the lua-resty-upstream-healthcheck
+some modify  for the lua-resty-upstream-healthcheck.
+
+简约的自动检查所有upstream，添加了exclude_lists排除列表，用于排除特定upstream的检查
 
 # Status
 
@@ -29,7 +31,7 @@ http {
 
         local ok, err = hc.checker{
             shm = "healthcheck",  -- defined by "lua_shared_dict"
-            exclude_lists = {"a.b.com","b.c.com",}, -- 排除清单，在排除清单中upstream，且值不为false时，不会进行检查
+            exclude_lists = {"a.b.com","b.c.com",}, -- 排除清单，在排除清单中upstream，不会进行检查
             type = "http",
 
             http_req = "GET /status HTTP/1.0\r\nHost: foo.com\r\n\r\n",

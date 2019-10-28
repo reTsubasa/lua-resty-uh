@@ -627,7 +627,8 @@ function _M.checker(opts)
         return nil, '"exclude_lists" type must be table'
     end
 
-    for _, name in ipairs(get_upstreams) do
+    local ups = get_upstreams()
+    for _, name in ipairs(ups) do
         -- exclude name in exlcude_lists
         if not ex_lists[name] or ex_lists[name] ~= false then
             -- rewrite the opts.upstream as the new name

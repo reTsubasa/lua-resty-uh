@@ -650,7 +650,10 @@ function _M.checker(opts)
                 opts['upstream'] = name
 
                 -- call the former spawn_checker func
-                _M.spawn_checker(opts)
+                local ok,err = _M.spawn_checker(opts)
+                if not ok then
+                    return nil,err
+                end
             end
         else
             -- rewrite the opts.upstream as the new name
@@ -658,9 +661,13 @@ function _M.checker(opts)
             opts['upstream'] = name
 
             -- call the former spawn_checker func
-            _M.spawn_checker(opts)
+            local ok,err = _M.spawn_checker(opts)
+            if not ok then
+                return nil,err
+            end
         end
     end
+    return true
 end
 
 local function gen_peers_status_info(peers, bits, idx)

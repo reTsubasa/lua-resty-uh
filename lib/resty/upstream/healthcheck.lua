@@ -640,16 +640,18 @@ function _M.checker(opts)
         if not ept_ex_list then
             local check_flag = true
             for _, up in ipairs(ex_lists) do
-                if name == ups then
+                if name == up then
                     check_flag = nil
                 end
             end
-            -- rewrite the opts.upstream as the new name
-            opts['upstream'] = nil
-            opts['upstream'] = name
+            if check_flag then
+                -- rewrite the opts.upstream as the new name
+                opts['upstream'] = nil
+                opts['upstream'] = name
 
-            -- call the former spawn_checker func
-            _M.spawn_checker(opts)
+                -- call the former spawn_checker func
+                _M.spawn_checker(opts)
+            end
         else
             -- rewrite the opts.upstream as the new name
             opts['upstream'] = nil

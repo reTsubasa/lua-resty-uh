@@ -25,14 +25,11 @@ http {
     lua_socket_log_errors off;
 
     init_worker_by_lua_block {
-        local hc = require "resty.upstream.uh"
+        local hc = require "resty.uh"
 
         local ok, err = hc.checker{
             shm = "healthcheck",  -- defined by "lua_shared_dict"
-            exlude_lists = {     
-               "a.b.com" = true,
-               "b.c.com" = false,      
-            },   -- 排除清单，在排除清单中upstream，且值不为false时，不会进行检查
+            exclude_lists = {"a.b.com","b.c.com",}, -- 排除清单，在排除清单中upstream，且值不为false时，不会进行检查
             type = "http",
 
             http_req = "GET /status HTTP/1.0\r\nHost: foo.com\r\n\r\n",
@@ -61,6 +58,8 @@ http {
 
 `luarocks install lua-resty-uh`
 
+
+
 # Methods
 
 ## checker
@@ -73,13 +72,20 @@ Healthchecker for all the upstreams,exlude the record in the "exclude_lists".
 
 Remove the the spawn_checker‘s option "upstream",Add new option "exclude_lists",if not exclude_lists given then all the upstreams will check.
 
-默认检查所有的upstream后端，除非给定的options参数中，包含`exclude_lists`排除列表，且列表中对应的upstream name值不为false。
+默认检查所有的upstream后端，除非给定的options参数中，包含`exclude_lists`排除列表
 
 注意：
 
 - 原 `spawn_checker()`函数参数*options.upstream*不在生效，该参数无需给予。(即便给了，也不会生效)
 
-- `exclude_lists`参数类型必须为*hash-table*，每个在列表中的值，只要不为`false`，都会加入检查目标
+- `exclude_lists`参数类型必须为*array-table*，每个在列表中的值都**不会**加入检查目标
+
+  例:
+
+  ```
+  exclude_lists = {"a.b.com","b.c.com",}, 
+  ```
+
 - 核心实现为原模块的`spawn_checker()`，每个upstream会调用一次，所以可能会有多次返回
 
 

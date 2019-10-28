@@ -1,5 +1,5 @@
 package = "lua-resty-uh"
-version = "0.0.1-1"
+version = "0.0.2-1"
 
 description = {
   summary  = "Some modify  for the lua-resty-upstream-healthcheck",
@@ -16,6 +16,6 @@ source = {
 build = {
   type    = "builtin",
   modules = {
-    ["resty.upstream.uh"]    = "lib/resty/upstream/healthcheck.lua",
+    ["resty.uh"]    = "lib/resty/upstream/healthcheck.lua",
   }
 }

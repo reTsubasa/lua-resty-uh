@@ -18,7 +18,7 @@ local wait = ngx.thread.wait
 local pcall = pcall
 
 local _M = {
-    _VERSION = '0.05'
+    _VERSION = '0.0.2'
 }
 
 if not ngx.config or not ngx.config.ngx_lua_version or ngx.config.ngx_lua_version < 9005 then
@@ -622,15 +622,35 @@ function _M.spawn_checker(opts)
 end
 
 function _M.checker(opts)
+    local ept_ex_list = nil
+
     local ex_lists = opts.exclude_lists or {}
     if ex_lists and type(ex_lists) ~= 'table' then
         return nil, '"exclude_lists" type must be table'
     end
 
+    if #ex_lists == 0 then
+        -- all upstream need check
+        ept_ex_list = true
+    end
+
     local ups = get_upstreams()
     for _, name in ipairs(ups) do
         -- exclude name in exlcude_lists
-        if not ex_lists[name] or ex_lists[name] ~= false then
+        if not ept_ex_list then
+            local check_flag = true
+            for _, up in ipairs(ex_lists) do
+                if name == ups then
+                    check_flag = nil
+                end
+            end
+            -- rewrite the opts.upstream as the new name
+            opts['upstream'] = nil
+            opts['upstream'] = name
+
+            -- call the former spawn_checker func
+            _M.spawn_checker(opts)
+        else
             -- rewrite the opts.upstream as the new name
             opts['upstream'] = nil
             opts['upstream'] = name

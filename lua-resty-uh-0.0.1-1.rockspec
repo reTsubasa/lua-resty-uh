@@ -8,8 +8,8 @@ description = {
 }
 
 source = {
-  url    = "git://github.com/reTsubasa/lua-resty-uh.git",
-  branch = "master"
+  url    = "git://github.com/reTsubasa/lua-resty-uh",
+  tag = "master"
 }
 
 

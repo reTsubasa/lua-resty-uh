@@ -622,7 +622,7 @@ function _M.spawn_checker(opts)
 end
 
 function _M.checker(opts)
-    local ex_lists = opts.exclude_lists or new_tab()
+    local ex_lists = opts.exclude_lists or {}
     if ex_lists and type(ex_lists) ~= 'table' then
         return nil, '"exclude_lists" type must be table'
     end

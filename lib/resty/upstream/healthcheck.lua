@@ -737,4 +737,20 @@ function _M.status_page()
     return concat(bits)
 end
 
+
+-- a peek into SHM and return all the records
+function _M.peek_shm(opts)
+    local cjson = require("cjson.safe")
+    local shm = ngx.shared[opts.shm]
+    local keys = shm:get_keys(2048)
+    if not keys then
+        return "Get keys from shm failed"
+    end
+
+    local ret = new_tab(64,64)
+    for _, key in ipairs(keys) do
+       table.insert(ret,{key = key,value = shm:get(key)})
+    end
+end
+
 return _M

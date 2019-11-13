@@ -375,7 +375,7 @@ local function upgrade_peers_version(ctx, peers, is_backup)
             down = true
         end
         if (peer.down and not down) or (not peer.down and down) then
-            local ok, err = set_peer_down(u, is_backup, id, down)
+            local ok, err = set_peer_down(u, is_backup, id, down)  -- down = true
             if not ok then
                 errlog('failed to set peer down: ', err)
             else

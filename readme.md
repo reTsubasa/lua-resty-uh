@@ -43,6 +43,7 @@ http {
             rise = 2,  -- # of successive successes before turning a peer up
             valid_statuses = {200, 302},  -- a list valid HTTP status code
             concurrency = 10,  -- concurrency level for test requests
+            ha_interval = 20， -- ha模式检查周期，单位秒
         }
         if not ok then
             ngx.log(ngx.ERR, "failed to spawn health checker: ", err)

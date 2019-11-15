@@ -820,6 +820,7 @@ function _M.status_page()
         bits[idx] = "HA Mode: Master\n"
     else
         bits[idx] = "HA Mode: Slaver\n"
+        return concat(bits)
     end
     idx = idx + 1
 

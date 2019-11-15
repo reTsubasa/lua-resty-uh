@@ -6,6 +6,7 @@ local WARN = ngx.WARN
 local DEBUG = ngx.DEBUG
 local sub = string.sub
 local re_find = ngx.re.find
+local re_match = ngx.re.match
 local new_timer = ngx.timer.at
 local shared = ngx.shared
 local debug_mode = ngx.config.debug
@@ -664,10 +665,8 @@ local function do_ha_check(ctx)
 
                 local _, _, ret, _ = pl_utils.executeex(cmd)
                 if ret then
-                    local f = re_find(ret, regex, "mjo", nil, 2)
-                    errlog(f)
-                    errlog(ret)
-                    if f then
+                    local f = re_match(ret, regex, "mjo")
+                    if f and #f> 1 then
                         -- master node
                         ha_flag = true
                     end

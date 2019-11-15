@@ -639,6 +639,7 @@ local function do_ha_check(ctx)
     for _, cmd in ipairs(cmds) do
         local ok, _, ret, err = pl_utils.executeex(cmd)
         if not ok then
+            errlog(err)
             return nil, err
         end
 

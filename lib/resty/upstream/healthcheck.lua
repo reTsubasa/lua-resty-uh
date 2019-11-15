@@ -666,6 +666,11 @@ local function do_ha_check(ctx)
                 local _, _, ret, _ = pl_utils.executeex(cmd)
                 if ret then
                     local f = re_match(ret, regex, "mjo")
+                    errlog(#f)
+                    errlog(f[0])
+                    errlog(f[1])
+                    errlog(f[2])
+                    errlog(f[3])
                     if f and #f> 1 then
                         -- master node
                         ha_flag = true

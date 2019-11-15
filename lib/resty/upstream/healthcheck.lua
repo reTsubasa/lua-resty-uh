@@ -644,9 +644,10 @@ local function do_ha_check(ctx)
             -- return nil, err
         end
         
+        local regex = [[inet\s\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}\/\d{1,2}]]
         if ret then
-            local f = re_find(ret, [[inet\s\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}\/\d{1,2}]], "imjo", 1)
-            errlog(f)
+            local f,t,err = re_find(ret,regex,"imjo", 1)
+            errlog(f,t,err)
             if f then
                 -- master node
                 ha_flag = true

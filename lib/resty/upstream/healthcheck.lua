@@ -429,10 +429,10 @@ local function do_check(ctx)
     -- check if the master node
 
     local dict = ctx.dict
-    local res,err = dict:get(hacheck_shm_key)
+    local res, err = dict:get(hacheck_shm_key)
     if not res then
         if err then
-            return nil,err
+            return nil, err
         end
         -- this is not master node,skip the health check
         return true
@@ -634,20 +634,21 @@ local function do_ha_check(ctx)
     local ha_flag
     local cmds = {
         "/usr/sbin/ip -f inet -4 address show eth0",
-        "/usr/sbin/ip -f inet -4 address show bond0",
+        "/usr/sbin/ip -f inet -4 address show bond0"
     }
 
     for i, cmd in ipairs(cmds) do
-        errlog("round:",i)
-        local ok, _, ret, err = pl_utils.executeex(cmd)
+        errlog("round:", i)
+        local ok, code, ret, err = pl_utils.executeex(cmd)
+        errlog(ok, code, ret, err)
         if not ok then
             errlog(err)
         end
-        
+
         local regex = [[inet\s\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}\/\d{1,2}]]
         if ret then
-            local f,t,err = re_find(ret,regex,"imjo", 1)
-            errlog(f,t,err)
+            local f, t, err = re_find(ret, regex, "imjo", 1)
+            errlog(f, t, err)
             if f then
                 -- master node
                 ha_flag = true
@@ -695,7 +696,7 @@ function _M.checker(opts)
 
     if ha_interval then
         if ha_interval < 10 then
-            ha_interval = 10   --set default ha check interval 10 secs
+            ha_interval = 10 --set default ha check interval 10 secs
         end
 
         local dict = shared[opts.shm]

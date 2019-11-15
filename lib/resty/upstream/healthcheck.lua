@@ -630,8 +630,29 @@ function _M.spawn_checker(opts)
     return true
 end
 
+
+local function get_ha_lock(ctx)
+    local dict = ctx.dict
+    local key = "l:"
+
+    -- the lock is held for the whole interval to prevent multiple
+    -- worker processes from sending the test request simultaneously.
+    -- here we substract the lock expiration time by 1ms to prevent
+    -- a race condition with the next timer event.
+    local ok, err = dict:add(key, true, ctx.ha_interval - 0.001)
+    if not ok then
+        if err == "exists" then
+            return nil
+        end
+        errlog('failed to add key "', key, '": ', err)
+        return nil
+    end
+    return true
+end
+
+
 local function do_ha_check(ctx)
-    if get_lock(ctx) then
+    if get_ha_lock(ctx) then
         local cmds = {
             "/usr/sbin/ip -f inet -4 address show bond0",
             "/usr/sbin/ip -f inet -4 address show eth0"

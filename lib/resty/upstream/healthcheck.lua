@@ -647,14 +647,17 @@ local function do_ha_check(ctx)
                 errlog(ret)
                 if f then
                     -- master node
-                    errlog("set to master mode")
                     ha_flag = true
                 end
             end
         end
     end
 
-    errlog("set to slave mode")
+    if not ha_flag then
+        errlog("set to slave mode")
+    else
+        errlog("set to master mode")
+    end
 
     -- update record to shm
     local shm = ctx.dict

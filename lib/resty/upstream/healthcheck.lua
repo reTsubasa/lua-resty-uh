@@ -634,22 +634,19 @@ local function do_ha_check(ctx)
     local ha_flag
     local cmds = {
         "/usr/sbin/ip -f inet -4 address show eth0",
-        "/usr/sbin/ip -f inet -4 address show bond0"
+        "/usr/sbin/ip -f inet -4 address show bond0",
     }
 
     for i, cmd in ipairs(cmds) do
         if not ha_flag then
-
-            errlog("round:", i)
-            local ok, code, ret, err = pl_utils.executeex(cmd)
-            errlog(ok, code, ret, err)
+            local ok, _, ret, err = pl_utils.executeex(cmd)
             if not ok then
                 errlog(err)
             end
 
             local regex = [[inet\s\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}\/\d{1,2}]]
             if ret then
-                local f, t, err = re_find(ret, regex, "imjo", 1)
+                local f, t, err = re_find(ret, regex, "imjo",)
                 errlog(f, t, err)
                 if f then
                     -- master node

@@ -637,6 +637,7 @@ local function do_ha_check(ctx)
         "/usr/sbin/ip -f inet -4 address show bond0",
     }
 
+    errlog("run cmds")
     for i, cmd in ipairs(cmds) do
         if not ha_flag then
             local ok, _, ret, err = pl_utils.executeex(cmd)
@@ -646,7 +647,7 @@ local function do_ha_check(ctx)
 
             local regex = [[inet\s\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}\/\d{1,2}]]
             if ret then
-                local f, t, err = re_find(ret, regex, "imjo",)
+                local f, t, err = re_find(ret, regex, "mjo",nil,1)
                 errlog(f, t, err)
                 if f then
                     -- master node
@@ -665,6 +666,7 @@ local function do_ha_check(ctx)
     if not ok then
         error(err)
     end
+
     return true
 end
 

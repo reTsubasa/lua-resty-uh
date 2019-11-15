@@ -58,7 +58,7 @@ http {
 
 # Install
 
-`luarocks install lua-resty-uh`
+`luarocks install lua-resty-uh 0.0.2` 
 
 
 

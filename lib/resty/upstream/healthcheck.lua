@@ -635,20 +635,17 @@ local function do_ha_check(ctx)
         "/usr/sbin/ip -f inet -4 address show eth0",
         "/usr/sbin/ip -f inet -4 address show bond0",
     }
-    local a,b,c,d = pl_utils.executeex(cmds[1])
-    errlog(a,b,c,d)
+
     for _, cmd in ipairs(cmds) do
         local ok, _, ret, err = pl_utils.executeex(cmd)
         if not ok then
             errlog(err)
-            return nil, err
+            -- return nil, err
         end
 
         if ret then
             local f = re_find(ret, [[inet\s\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}\/\d{1,2}]], "imjo", 2)
             if f then
-                errlog(ret)
-                errlog("master node")
                 -- master node
                 ha_flag = true
             end
@@ -659,11 +656,10 @@ local function do_ha_check(ctx)
     -- update record to shm
     local shm = ctx.dict
 
+    errlog("set to shm")
     local ok, err = shm:set(hacheck_shm_key, ha_flag)
     if not ok then
-        if err then
-            return nil, err
-        end
+        error(err)
     end
     return true
 end

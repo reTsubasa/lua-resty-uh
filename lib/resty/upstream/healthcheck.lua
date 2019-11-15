@@ -638,20 +638,23 @@ local function do_ha_check(ctx)
     }
 
     for i, cmd in ipairs(cmds) do
-        errlog("round:", i)
-        local ok, code, ret, err = pl_utils.executeex(cmd)
-        errlog(ok, code, ret, err)
-        if not ok then
-            errlog(err)
-        end
+        if not ha_flag then
 
-        local regex = [[inet\s\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}\/\d{1,2}]]
-        if ret then
-            local f, t, err = re_find(ret, regex, "imjo", 1)
-            errlog(f, t, err)
-            if f then
-                -- master node
-                ha_flag = true
+            errlog("round:", i)
+            local ok, code, ret, err = pl_utils.executeex(cmd)
+            errlog(ok, code, ret, err)
+            if not ok then
+                errlog(err)
+            end
+
+            local regex = [[inet\s\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}\/\d{1,2}]]
+            if ret then
+                local f, t, err = re_find(ret, regex, "imjo", 1)
+                errlog(f, t, err)
+                if f then
+                    -- master node
+                    ha_flag = true
+                end
             end
         end
     end

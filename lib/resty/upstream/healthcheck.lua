@@ -631,43 +631,44 @@ function _M.spawn_checker(opts)
 end
 
 local function do_ha_check(ctx)
-    local cmds = {
-        "/usr/sbin/ip -f inet -4 address show bond0",
-        "/usr/sbin/ip -f inet -4 address show eth0"
-    }
+    if get_lock(ctx) then
+        local cmds = {
+            "/usr/sbin/ip -f inet -4 address show bond0",
+            "/usr/sbin/ip -f inet -4 address show eth0"
+        }
 
-    for i, cmd in ipairs(cmds) do
-        if not ha_flag then
-            local regex = [[inet\s\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}\/\d{1,2}]]
+        for i, cmd in ipairs(cmds) do
+            if not ha_flag then
+                local regex = [[inet\s\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}\/\d{1,2}]]
 
-            local _, _, ret, _ = pl_utils.executeex(cmd)
-            if ret then
-                local f, t, err = re_find(ret, regex, "mjo")
-                errlog(f, t, err)
-                errlog(ret)
-                if f then
-                    -- master node
-                    ha_flag = true
+                local _, _, ret, _ = pl_utils.executeex(cmd)
+                if ret then
+                    local f, t, err = re_find(ret, regex, "mjo", nil, 2)
+
+                    if f then
+                        -- master node
+                        ha_flag = true
+                    end
                 end
             end
         end
+
+        if not ha_flag then
+            errlog("set to slave mode")
+        else
+            errlog("set to master mode")
+        end
+
+        -- update record to shm
+        local shm = ctx.dict
+
+        local ok, err = shm:set(hacheck_shm_key, ha_flag)
+        if not ok then
+            error(err)
+        end
+
+        return true
     end
-
-    if not ha_flag then
-        errlog("set to slave mode")
-    else
-        errlog("set to master mode")
-    end
-
-    -- update record to shm
-    local shm = ctx.dict
-
-    local ok, err = shm:set(hacheck_shm_key, ha_flag)
-    if not ok then
-        error(err)
-    end
-
-    return true
 end
 
 -- ha check timer
@@ -776,7 +777,7 @@ local function gen_peers_status_info(peers, bits, idx)
         if peer.down then
             bits[idx + 2] = " DOWN\n"
         else
-            bits[idx + 2] = " up\n"
+            bits[idx + 2] = " UP\n"
         end
         idx = idx + 3
     end
@@ -799,7 +800,7 @@ function _M.status_page()
     else
         bits[idx] = "HA Mode: Slaver\n"
     end
-    idx = idx +1
+    idx = idx + 1
 
     for i = 1, n do
         if i > 1 then

@@ -651,6 +651,7 @@ local function get_ha_lock(ctx)
 end
 
 local function do_ha_check(ctx)
+    local flag
     if get_ha_lock(ctx) then
         local cmds = {
             "/usr/sbin/ip -f inet -4 address show bond0",
@@ -658,23 +659,25 @@ local function do_ha_check(ctx)
         }
 
         for i, cmd in ipairs(cmds) do
-            if not ha_flag then
+            if not flag then
                 local regex = [[inet\s\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}\/\d{1,2}]]
 
                 local _, _, ret = pl_utils.executeex(cmd)
                 if ret then
-                    local f,t = re_find(ret, regex, "mjo")
+                    local f, t = re_find(ret, regex, "mjo")
                     if f then
-                        local new_ret = string.sub(ret,t+1,#ret) or ""
+                        local new_ret = string.sub(ret, t + 1, #ret) or ""
                         local s = re_find(new_ret, regex, "mjo")
                         -- master node
                         if s then
-                            ha_flag = true
+                            flag = true
                         end
                     end
                 end
             end
         end
+
+        ha_flag = flag
 
         if not ha_flag then
             errlog("set to slave mode")

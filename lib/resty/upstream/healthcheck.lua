@@ -635,7 +635,7 @@ local function do_ha_check(ctx)
         "ip -f inet -4 address show eth0",
         "ip -f inet -4 address show bond0",
     }
-    local a,b,c,d = pl_utils.executeex(cmd[1])
+    local a,b,c,d = pl_utils.executeex(cmds[1])
     errlog(a,b,c,d)
     for _, cmd in ipairs(cmds) do
         local ok, _, ret, err = pl_utils.executeex(cmd)

@@ -630,14 +630,12 @@ function _M.spawn_checker(opts)
 end
 
 local function do_ha_check(ctx)
-    errlog("in do_ha_check")
     local ha_flag
     local cmds = {
         "/usr/sbin/ip -f inet -4 address show eth0",
-        "/usr/sbin/ip -f inet -4 address show bond0",
+        "/usr/sbin/ip -f inet -4 address show bond0"
     }
 
-    errlog("run cmds")
     for i, cmd in ipairs(cmds) do
         if not ha_flag then
             local ok, _, ret, err = pl_utils.executeex(cmd)
@@ -647,7 +645,7 @@ local function do_ha_check(ctx)
 
             local regex = [[inet\s\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}\/\d{1,2}]]
             if ret then
-                local f, t, err = re_find(ret, regex, "mjo",nil,1)
+                local f, t, err = re_find(ret, regex, "mjo", nil, 1)
                 errlog(f, t, err)
                 if f then
                     -- master node
@@ -657,11 +655,9 @@ local function do_ha_check(ctx)
         end
     end
 
-    errlog("slave node")
     -- update record to shm
     local shm = ctx.dict
 
-    errlog("set to shm")
     local ok, err = shm:set(hacheck_shm_key, ha_flag)
     if not ok then
         error(err)
@@ -676,7 +672,7 @@ ha_check = function(premature, ctx)
     if premature then
         return
     end
-    errlog("do ha check")
+
     local ok, err = pcall(do_ha_check, ctx)
     if not ok then
         errlog("failed to run ha_timer cycle: ", err)

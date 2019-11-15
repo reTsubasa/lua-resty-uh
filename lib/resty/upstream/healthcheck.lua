@@ -6,7 +6,7 @@ local WARN = ngx.WARN
 local DEBUG = ngx.DEBUG
 local sub = string.sub
 local re_find = ngx.re.find
-local re_match = ngx.re.match
+local re_gmatch = ngx.re.gmatch
 local new_timer = ngx.timer.at
 local shared = ngx.shared
 local debug_mode = ngx.config.debug
@@ -661,18 +661,16 @@ local function do_ha_check(ctx)
             if not ha_flag then
                 local regex = [[inet\s\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}\/\d{1,2}]]
 
-                local _, _, ret, _ = pl_utils.executeex(cmd)
+                local _, _, ret = pl_utils.executeex(cmd)
                 if ret then
-                    local f = re_match(ret, regex, "mjo")
-
+                    local f,t = re_find(ret, regex, "mjo")
                     if f then
-                        errlog("match:",#f)
-                        errlog("match:",f[0])
-                        errlog("match:",f[1])
-                        errlog("match:",f[2])
-                        errlog("match:",f[3])
+                        local new_ret = string.sub(ret,t+1,#ret) or ""
+                        local s = re_find(new_ret, regex, "mjo")
                         -- master node
-                        ha_flag = true
+                        if s then
+                            ha_flag = true
+                        end
                     end
                 end
             end

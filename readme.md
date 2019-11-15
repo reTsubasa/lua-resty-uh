@@ -115,13 +115,21 @@ Remove the the spawn_checker‘s option "upstream",Add new option "exclude_lists
 
 - ha_interval: (optional)。 *version 0.0.4* 
 
-  用于在HA部署模式下，使备用Nginx不发起向后端的检查，以降低节点检查的总请求量。
+  - 用于在HA部署模式下，使备用Nginx不发起向后端的检查，以降低节点检查的总请求量。
 
-  它的输入类型是一个**数字**，单位：**秒**,最小值：**10**，用于声明是否需要HA部署模式下的主/备状态检查得定时器的**时间间隔**。
+  - 它的输入类型是一个**数字**，单位：**秒**,最小值：**10**，用于声明是否需要HA部署模式下的主/备状态检查得定时器的**时间间隔**。
 
-  检查的本质是通过检查`eth0`或`bond0`接口下，`ipv4` `inet`条目数实现的。默认场景下`eth0`或`bond0`接口下`inet`条目数大于**1**条时，认为该节点是主节点。
+  - 检查的本质是通过检查`eth0`或`bond0`接口下，`ipv4` `inet`条目数实现的。默认场景下`eth0`或`bond0`接口下`inet`条目数大于**1**条时，认为该节点是主节点。
 
+  - 如果该参数提供，则`status_page`函数会同时提供如：`HA Mode: Slaver`的提示。如果节点处于`slaver`模式，因为不向后端发起检查，所以不会返回后端节点信息。
+  
+  - 会根据节点模式，主动关闭/开启后端检查请求。
+  
+    
+  
   虽然该实现上不足之处明显，不过总的来说，大多数场景下并不会造成更坏的情况。**除非你的网络不在`eth0`或`bond0`接口下提供服务的情况下，同时启用了该配置，那么健康度检查功能将会失效。**
+  
+  
 
 
 
@@ -167,3 +175,26 @@ Upstream foo.com (NO checkers)
 
 If you indeed have spawned a healthchecker in `init_worker_by_lua*`, then you should really
 check out the NGINX error log file to see if there is any fatal errors aborting the healthchecker threads.
+
+
+
+若启用ha_interval参数：
+
+Slaver节点
+
+```
+HA Mode: Slaver
+```
+
+Master节点
+
+```
+HA Mode: Master
+Upstream foo
+    Primary Peers
+        127.0.0.1:12354 DOWN
+        127.0.0.1:12355 DOWN
+    Backup Peers
+        127.0.0.1:12356 DOWN
+```
+

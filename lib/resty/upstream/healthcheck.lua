@@ -642,7 +642,7 @@ local function do_ha_check(ctx)
 
             local _, _, ret, _ = pl_utils.executeex(cmd)
             if ret then
-                local f, t, err = re_find(ret, regex, "mjo", nil, 1)
+                local f, t, err = re_find(ret, regex, "mjo")
                 errlog(f,t,err)
                 errlog(ret)
                 if f then

@@ -672,7 +672,7 @@ ha_check = function(premature, ctx)
     if premature then
         return
     end
-
+    errlog("do ha check")
     local ok, err = pcall(do_ha_check, ctx)
     if not ok then
         errlog("failed to run ha_timer cycle: ", err)

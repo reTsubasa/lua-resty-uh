@@ -666,11 +666,11 @@ local function do_ha_check(ctx)
                     local f = re_match(ret, regex, "mjo")
 
                     if f then
-                        errlog(#f)
-                        errlog(f[0])
-                        errlog(f[1])
-                        errlog(f[2])
-                        errlog(f[3])
+                        errlog("match:",#f)
+                        errlog("match:",f[0])
+                        errlog("match:",f[1])
+                        errlog("match:",f[2])
+                        errlog("match:",f[3])
                         -- master node
                         ha_flag = true
                     end

@@ -630,6 +630,7 @@ function _M.spawn_checker(opts)
 end
 
 local function do_ha_check(ctx)
+    errlog("in do_ha_check")
     local ha_flag
     local cmds = {
         "/usr/sbin/ip -f inet -4 address show eth0",
@@ -642,7 +643,7 @@ local function do_ha_check(ctx)
             errlog(err)
             -- return nil, err
         end
-
+        errlog(ret)
         if ret then
             local f = re_find(ret, [[inet\s\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}\/\d{1,2}]], "imjo", 2)
             if f then

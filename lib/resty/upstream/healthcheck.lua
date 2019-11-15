@@ -631,7 +631,6 @@ function _M.spawn_checker(opts)
     return true
 end
 
-
 local function get_ha_lock(ctx)
     local dict = ctx.dict
     local key = "l:"
@@ -651,7 +650,6 @@ local function get_ha_lock(ctx)
     return true
 end
 
-
 local function do_ha_check(ctx)
     if get_ha_lock(ctx) then
         local cmds = {
@@ -666,12 +664,13 @@ local function do_ha_check(ctx)
                 local _, _, ret, _ = pl_utils.executeex(cmd)
                 if ret then
                     local f = re_match(ret, regex, "mjo")
-                    errlog(#f)
-                    errlog(f[0])
-                    errlog(f[1])
-                    errlog(f[2])
-                    errlog(f[3])
-                    if f and #f> 1 then
+
+                    if f then
+                        errlog(#f)
+                        errlog(f[0])
+                        errlog(f[1])
+                        errlog(f[2])
+                        errlog(f[3])
                         -- master node
                         ha_flag = true
                     end

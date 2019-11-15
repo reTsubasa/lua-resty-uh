@@ -428,8 +428,8 @@ local function do_check(ctx)
 
     -- check if the master node
 
-    local shm = ctx.dict
-    local res,err = shm:get(hacheck_shm_key)
+    local dict = ctx.dict
+    local res,err = dict:get(hacheck_shm_key)
     if not res then
         if err then
             return nil,err
@@ -633,7 +633,7 @@ local function do_ha_check(ctx)
     local ha_flag
     local cmds = {
         "ip -f inet -4 address show eth0",
-        "ip -f inet -4 address show bond0"
+        "ip -f inet -4 address show bond0",
     }
 
     for _, cmd in ipairs(cmds) do
@@ -651,6 +651,7 @@ local function do_ha_check(ctx)
         end
     end
 
+    errlog("slave node")
     -- update record to shm
     local shm = ctx.dict
 
@@ -694,7 +695,7 @@ function _M.checker(opts)
             ha_interval = 10   --set default ha check interval 10 secs
         end
 
-        local dict = shared[shm]
+        local dict = shared[opts.shm]
         if not dict then
             return nil, '"shm" option required'
         end

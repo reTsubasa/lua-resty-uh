@@ -45,6 +45,7 @@ local get_upstreams = upstream.get_upstreams
 
 local upstream_checker_statuses = {}
 
+local ha_flag = false
 local hacheck_shm_key = "master_node"
 
 local function warn(...)
@@ -630,7 +631,6 @@ function _M.spawn_checker(opts)
 end
 
 local function do_ha_check(ctx)
-    local ha_flag
     local cmds = {
         "/usr/sbin/ip -f inet -4 address show bond0",
         "/usr/sbin/ip -f inet -4 address show eth0"
@@ -643,7 +643,7 @@ local function do_ha_check(ctx)
             local _, _, ret, _ = pl_utils.executeex(cmd)
             if ret then
                 local f, t, err = re_find(ret, regex, "mjo")
-                errlog(f,t,err)
+                errlog(f, t, err)
                 errlog(ret)
                 if f then
                     -- master node
@@ -793,6 +793,14 @@ function _M.status_page()
     local n = #us
     local bits = new_tab(n * 20, 0)
     local idx = 1
+    -- add ha mode
+    if ha_flag then
+        bits[idx] = "HA Mode: Master\n"
+    else
+        bits[idx] = "HA Mode: Slaver\n"
+    end
+    idx = idx +1
+
     for i = 1, n do
         if i > 1 then
             bits[idx] = "\n"

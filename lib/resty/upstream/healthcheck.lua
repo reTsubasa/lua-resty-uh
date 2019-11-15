@@ -637,11 +637,11 @@ local function do_ha_check(ctx)
         "/usr/sbin/ip -f inet -4 address show bond0",
     }
 
-    for _, cmd in ipairs(cmds) do
+    for i, cmd in ipairs(cmds) do
+        errlog("round:",i)
         local ok, _, ret, err = pl_utils.executeex(cmd)
         if not ok then
             errlog(err)
-            -- return nil, err
         end
         
         local regex = [[inet\s\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}\/\d{1,2}]]

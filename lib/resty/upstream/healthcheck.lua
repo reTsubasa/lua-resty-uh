@@ -632,8 +632,8 @@ end
 local function do_ha_check(ctx)
     local ha_flag
     local cmds = {
-        "ip -f inet -4 address show eth0",
-        "ip -f inet -4 address show bond0",
+        "/usr/sbin/ip -f inet -4 address show eth0",
+        "/usr/sbin/ip -f inet -4 address show bond0",
     }
     local a,b,c,d = pl_utils.executeex(cmds[1])
     errlog(a,b,c,d)

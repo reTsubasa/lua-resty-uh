@@ -638,14 +638,13 @@ local function do_ha_check(ctx)
 
     for i, cmd in ipairs(cmds) do
         if not ha_flag then
-            local _, _, ret, _ = pl_utils.executeex(cmd)
-            -- if not ok then
-            --     errlog(err)
-            -- end
-
             local regex = [[inet\s\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}\/\d{1,2}]]
+
+            local _, _, ret, _ = pl_utils.executeex(cmd)
             if ret then
                 local f, t, err = re_find(ret, regex, "mjo", nil, 1)
+                errlog(f,t,err)
+                errlog(ret)
                 if f then
                     -- master node
                     errlog("set to master mode")

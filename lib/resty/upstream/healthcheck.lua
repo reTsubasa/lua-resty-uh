@@ -428,7 +428,7 @@ local function do_check(ctx)
 
     -- check if the master node
 
-    local shm = ctx.shm
+    local shm = ctx.dict
     local res,err = shm:get(hacheck_shm_key)
     if not res then
         if err then
@@ -652,7 +652,7 @@ local function do_ha_check(ctx)
     end
 
     -- update record to shm
-    local shm = ctx.shm
+    local shm = ctx.dict
 
     local ok, err = shm:set(hacheck_shm_key, ha_flag)
     if not ok then
@@ -694,14 +694,14 @@ function _M.checker(opts)
             ha_interval = 10   --set default ha check interval 10 secs
         end
 
-        local shm = opts.shm
-        if not shm then
+        local dict = shared[shm]
+        if not dict then
             return nil, '"shm" option required'
         end
 
         local ctx = {
             ha_interval = ha_interval,
-            shm = shm
+            dict = dict
         }
 
         local ok, err = new_timer(0, ha_check, ctx)

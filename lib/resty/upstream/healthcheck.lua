@@ -742,6 +742,8 @@ function _M.checker(opts)
         if not ok then
             return nil, "failed to create ha_timer: " .. err
         end
+    else
+        ha_flag = "Disabled"
     end
 
     -- exclude_lists
@@ -820,14 +822,17 @@ function _M.status_page()
     local n = #us
     local bits = new_tab(n * 20, 0)
     local idx = 1
+
     -- add ha mode
-    if ha_flag then
-        bits[idx] = "HA Mode: Master\n"
-    else
-        bits[idx] = "HA Mode: Slaver\n"
-        return concat(bits)
+    if ha_flag ~= "Disabled" then
+        if ha_flag then
+            bits[idx] = "HA Mode: Master\n"
+        else
+            bits[idx] = "HA Mode: Slaver\n"
+            return concat(bits)
+        end
+        idx = idx + 1
     end
-    idx = idx + 1
 
     for i = 1, n do
         if i > 1 then

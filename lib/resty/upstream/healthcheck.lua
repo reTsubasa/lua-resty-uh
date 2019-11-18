@@ -655,7 +655,8 @@ local function do_ha_check(ctx)
     if get_ha_lock(ctx) then
         local cmds = {
             "/usr/sbin/ip -f inet -4 address show bond0",
-            "/usr/sbin/ip -f inet -4 address show eth0"
+            "/usr/sbin/ip -f inet -4 address show eth0",
+            "/usr/sbin/ip -f inet -4 address show em2",
         }
 
         for i, cmd in ipairs(cmds) do

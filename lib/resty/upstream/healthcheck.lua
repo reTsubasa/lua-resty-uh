@@ -509,7 +509,7 @@ local function update_upstream_checker_status(ctx, success)
         cnt = cnt - 1
     end
     ngx.log(ngx.ERR,cnt)
-    local ok, err = dict:set(u)
+    local ok, err = dict:set(u,cnt)
     if not ok then
         errlog("update checker failed",err)
     end

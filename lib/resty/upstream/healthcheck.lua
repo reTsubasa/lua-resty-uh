@@ -47,7 +47,7 @@ local get_upstreams = upstream.get_upstreams
 -- local upstream_checker_statuses = {}
 
 -- local ha_flag = false
-local hacheck_shm_key = "master_node"
+-- local hacheck_shm_key = "master_node"
 local shm_handler
 
 local function warn(...)
@@ -456,7 +456,7 @@ local function do_check(ctx)
     -- check if the master node
 
     local dict = ctx.dict
-    local res, err = dict:get(hacheck_shm_key)
+    local res, err = dict:get("ha_flag")
     if not res then
         if err then
             return nil, err

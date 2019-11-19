@@ -90,6 +90,7 @@ local function ha_status(status)
         end
     end
 end
+
 local function gen_peer_key(prefix, u, is_backup, id)
     if is_backup then
         return prefix .. u .. ":b" .. id
@@ -458,7 +459,7 @@ local function do_check(ctx)
 
     local dict = ctx.dict
     local res, err = dict:get(hacheck_shm_key)
-    if (not res) or (res ~= "Master") then
+    if (not res) or (res ~= "Master") or (res ~= "Disabled")then
         if err then
             return nil, err
         end

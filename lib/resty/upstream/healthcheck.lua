@@ -864,6 +864,7 @@ function _M.status_page()
         idx = idx + 2
 
         local ncheckers,err = shm_handler:get(u)
+        ngx.log(ngx.ERR,u)
         ngx.log(ngx.ERR,ncheckers,err)
         if not ncheckers or ncheckers == 0 then
             bits[idx] = " (NO checkers)"

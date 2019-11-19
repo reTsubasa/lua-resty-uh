@@ -46,7 +46,7 @@ local get_upstreams = upstream.get_upstreams
 
 -- local upstream_checker_statuses = {}
 
-local ha_flag = false
+-- local ha_flag = false
 local hacheck_shm_key = "master_node"
 local shm_handler
 
@@ -65,6 +65,30 @@ local function debug(...)
     end
 end
 
+local function ha_status(status)
+    if not shm_handler then
+        errlog("get shm handler failed")
+    end
+
+    if type(status) == "boolean" then
+        if status then
+            local ok, err = shm_handler:set("ha_flag", "Master")
+            if not ok then
+                errlog("set ha_flag failed", err)
+            end
+        else
+            local ok, err = shm_handler:set("ha_flag", "Slaver")
+            if not ok then
+                errlog("set ha_flag failed", err)
+            end
+        end
+    else
+        local ok, err = shm_handler:set("ha_flag", "Disabled")
+        if not ok then
+            errlog("set ha_flag failed", err)
+        end
+    end
+end
 local function gen_peer_key(prefix, u, is_backup, id)
     if is_backup then
         return prefix .. u .. ":b" .. id
@@ -482,7 +506,7 @@ local function update_upstream_checker_status(ctx, success)
         cnt = cnt - 1
     end
 
-    local ok,err = dict:set(u)
+    local ok, err = dict:set(u)
     -- upstream_checker_statuses[upstream] = cnt
 end
 
@@ -640,9 +664,6 @@ local function get_ha_lock(ctx)
     local dict = ctx.dict
     local key = "l:"
 
-    -- set the shm hander as module layer arg
-    shm_handler = dict
-
     -- the lock is held for the whole interval to prevent multiple
     -- worker processes from sending the test request simultaneously.
     -- here we substract the lock expiration time by 1ms to prevent
@@ -667,7 +688,7 @@ local function do_ha_check(ctx)
             "/usr/sbin/ip -f inet -4 address show em2",
             "/sbin/ip -f inet -4 address show bond0",
             "/sbin/ip -f inet -4 address show eth0",
-            "/sbin/ip -f inet -4 address show em2",
+            "/sbin/ip -f inet -4 address show em2"
         }
 
         for i, cmd in ipairs(cmds) do
@@ -689,22 +710,14 @@ local function do_ha_check(ctx)
             end
         end
 
-        ha_flag = flag
-
-        if not ha_flag then
+        if not flag then
             errlog("set to slave mode")
         else
             errlog("set to master mode")
         end
 
-        -- update record to shm
-        local shm = ctx.dict
-
-        local ok, err = shm:set(hacheck_shm_key, ha_flag)
-        if not ok then
-            error(err)
-        end
-
+        -- update the flag to shm
+        ha_status(flag)
         return true
     end
 end
@@ -735,14 +748,22 @@ function _M.checker(opts)
     -- ha timer
     local ha_interval = tonumber(opts.ha_interval)
 
+    -- set the shm hander as module layer arg
+    local shm = opts.shm
+    if not shm then
+        return nil, '"shm" option required'
+    end
+
+    local dict = shared[shm]
+    if not dict then
+        return nil, 'shm "' .. tostring(shm) .. '" not found'
+    end
+
+    shm_handler = dict
+
     if ha_interval then
         if ha_interval < 10 then
             ha_interval = 10 --set default ha check interval 10 secs
-        end
-
-        local dict = shared[opts.shm]
-        if not dict then
-            return nil, '"shm" option required'
         end
 
         local ctx = {
@@ -755,7 +776,7 @@ function _M.checker(opts)
             return nil, "failed to create ha_timer: " .. err
         end
     else
-        ha_flag = "Disabled"
+        ha_status("Disabled")
     end
 
     -- exclude_lists
@@ -835,20 +856,21 @@ function _M.status_page()
     local bits = new_tab(n * 20, 0)
     local idx = 1
 
+    -- check shm_handler
+    if not shm_handler then
+        return "Shm Status Unkown"
+    end
+
     -- add ha mode
+    local ha_flag = shm_handler:get("ha_flag")
     if ha_flag ~= "Disabled" then
-        if ha_flag then
+        if ha_flag == "Master" then
             bits[idx] = "HA Mode: Master\n"
-        else
+        elseif ha_flag == "Slaver" then
             bits[idx] = "HA Mode: Slaver\n"
             return concat(bits)
         end
         idx = idx + 1
-    end
-
-    -- check shm_handler
-    if not shm_handler then
-        return "Shm Status Unkown"
     end
 
     for i = 1, n do
@@ -863,9 +885,9 @@ function _M.status_page()
         bits[idx + 1] = u
         idx = idx + 2
 
-        local ncheckers,err = shm_handler:get(u)
-        ngx.log(ngx.ERR,u)
-        ngx.log(ngx.ERR,ncheckers,err)
+        local ncheckers, err = shm_handler:get(u)
+        ngx.log(ngx.ERR, u)
+        ngx.log(ngx.ERR, ncheckers, err)
         if not ncheckers or ncheckers == 0 then
             bits[idx] = " (NO checkers)"
             idx = idx + 1

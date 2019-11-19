@@ -43,6 +43,7 @@ http {
             rise = 2,  -- # of successive successes before turning a peer up
             valid_statuses = {200, 302},  -- a list valid HTTP status code
             concurrency = 10,  -- concurrency level for test requests
+            ha_interval = 20， -- ha模式检查周期，单位秒
         }
         if not ok then
             ngx.log(ngx.ERR, "failed to spawn health checker: ", err)
@@ -60,6 +61,10 @@ http {
 
 `luarocks install lua-resty-uh 0.0.2` 
 
+# New Feature
+- 默认检查所有upstream *version 0.0.2*
+- 在Nginx HA部署下，排除备机向upstream发起检查的简单过滤 *version 0.0.4*
+- 
 
 
 # Methods
@@ -89,6 +94,44 @@ Remove the the spawn_checker‘s option "upstream",Add new option "exclude_lists
   ```
 
 - 核心实现为原模块的`spawn_checker()`，每个upstream会调用一次，所以可能会有多次返回
+
+**opts：**
+
+- shm ：通过**lua_shared_dict**指令分配的缓存名称
+- type：检查协议，目前只支持**http**
+- http_req：http请求原始信息
+- interval：每一个upstream检查的间隔时间
+- timeout：检查网络超时时间
+- fall：失败次数，检查失败大于该失败次数后，节点下线
+- rise：成功次数，检查成功大于成功次数后，节点上线
+- valid_statuses ：节点健康的http 响应码列表
+- concurrency：同一个upstream组中，同时并发检查后端的轻线程数
+
+*new opts:*
+
+- exclude_lists：(optional)。 *version 0.0.2* 
+
+  显示申明的一个列表，指明不检查指定后端upstream名称。 它是一个`array-table`类型的值。
+
+- ha_interval: (optional)。 *version 0.0.4* 
+
+  - 用于在HA部署模式下，使备用Nginx不发起向后端的检查，以降低节点检查的总请求量。
+
+  - 它的输入类型是一个**数字**，单位：**秒**,最小值：**10**，用于声明是否需要HA部署模式下的主/备状态检查得定时器的**时间间隔**。
+
+  - 检查的本质是通过检查`eth0`或`bond0`接口下，`ipv4` `inet`条目数实现的。默认场景下`eth0`或`bond0`接口下`inet`条目数大于**1**条时，认为该节点是主节点。
+
+  - 如果该参数提供，则`status_page`函数会同时提供如：`HA Mode: Slaver`的提示。如果节点处于`slaver`模式，因为不向后端发起检查，所以不会返回后端节点信息。
+  
+  - 会根据节点模式，主动关闭/开启后端检查请求。
+  
+    
+  
+  虽然该实现上不足之处明显，不过总的来说，大多数场景下并不会造成更坏的情况。**除非你的网络不在`eth0`或`bond0`接口下提供服务的情况下，同时启用了该配置，那么健康度检查功能将会失效。**
+  
+  
+
+
 
 
 
@@ -132,3 +175,26 @@ Upstream foo.com (NO checkers)
 
 If you indeed have spawned a healthchecker in `init_worker_by_lua*`, then you should really
 check out the NGINX error log file to see if there is any fatal errors aborting the healthchecker threads.
+
+
+
+若启用ha_interval参数：
+
+Slaver节点
+
+```
+HA Mode: Slaver
+```
+
+Master节点
+
+```
+HA Mode: Master
+Upstream foo
+    Primary Peers
+        127.0.0.1:12354 DOWN
+        127.0.0.1:12355 DOWN
+    Backup Peers
+        127.0.0.1:12356 DOWN
+```
+

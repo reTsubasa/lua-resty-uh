@@ -467,7 +467,7 @@ local function do_check(ctx)
         -- this is not master node,skip the health check
         return true
     end
-
+    ngx.log(ngx.ERR,"go check")
     check_peers_updates(ctx)
 
     if get_lock(ctx) then
@@ -508,7 +508,7 @@ local function update_upstream_checker_status(ctx, success)
     else
         cnt = cnt - 1
     end
-
+    ngx.log(ngx.ERR,cnt)
     local ok, err = dict:set(u)
     if not ok then
         errlog("update checker failed",err)

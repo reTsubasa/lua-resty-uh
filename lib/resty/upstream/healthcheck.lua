@@ -459,6 +459,7 @@ local function do_check(ctx)
 
     local dict = ctx.dict
     local res, err = dict:get(hacheck_shm_key)
+    ngx.log(ngx.ERR,res)
     if (not res) or (res ~= "Master") then
         if err then
             return nil, err

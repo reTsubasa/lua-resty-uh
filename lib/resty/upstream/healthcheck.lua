@@ -939,6 +939,7 @@ function _M.status()
         end
 
         -- add upstream info to the table
+        tb[upstream] = {}
         tb[upstream]["checked"] = checked
         tb[upstream]["primary"] = p_peers
         tb[upstream]["backup"]  = b_peers

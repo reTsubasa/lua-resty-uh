@@ -459,7 +459,7 @@ local function do_check(ctx)
 
     local dict = ctx.dict
     local res, err = dict:get(hacheck_shm_key)
-    if (not res) or (res ~= "Master") or (res ~= "Disabled")then
+    if res and res == "Slaver" then
         if err then
             return nil, err
         end
@@ -848,7 +848,6 @@ function _M.status_page()
 
     -- add ha mode
     local ha_flag = shm_hc:get(hacheck_shm_key)
-    ngx.log(ngx.ERR,ha_flag)
     if ha_flag ~= "Disabled" then
         if ha_flag == "Master" then
             bits[idx] = "HA Mode: Master\n"

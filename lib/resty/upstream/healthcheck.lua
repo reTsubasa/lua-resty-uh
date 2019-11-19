@@ -44,7 +44,6 @@ if not ok or type(new_tab) ~= "function" then
     end
 end
 
-
 local set_peer_down = upstream.set_peer_down
 local get_primary_peers = upstream.get_primary_peers
 local get_backup_peers = upstream.get_backup_peers
@@ -71,7 +70,6 @@ local function debug(...)
 end
 
 local function ha_status(status)
-
     if type(status) == "boolean" then
         if status then
             local ok, err = shm_hc:set(hacheck_shm_key, "Master")
@@ -459,7 +457,6 @@ local function do_check(ctx)
 
     local dict = ctx.dict
     local res, err = dict:get(hacheck_shm_key)
-    ngx.log(ngx.ERR,res)
     if (not res) or (res ~= "Master") then
         if err then
             return nil, err
@@ -467,7 +464,6 @@ local function do_check(ctx)
         -- this is not master node,skip the health check
         return true
     end
-    ngx.log(ngx.ERR,"go check")
     check_peers_updates(ctx)
 
     if get_lock(ctx) then
@@ -508,10 +504,9 @@ local function update_upstream_checker_status(ctx, success)
     else
         cnt = cnt - 1
     end
-    ngx.log(ngx.ERR,cnt)
-    local ok, err = dict:set(u,cnt)
+    local ok, err = dict:set(u, cnt)
     if not ok then
-        errlog("update checker failed",err)
+        errlog("update checker failed", err)
     end
     -- upstream_checker_statuses[upstream] = cnt
 end

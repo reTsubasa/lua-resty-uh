@@ -32,12 +32,18 @@ if not ok then
     error("ngx_upstream_lua module required")
 end
 
+local ok,shm_hc = pcall(require,"ngx.shared.healthcheck")
+if not ok then
+    error("shared dict 'healthcheck' mustbe set")
+end
+
 local ok, new_tab = pcall(require, "table.new")
 if not ok or type(new_tab) ~= "function" then
     new_tab = function(narr, nrec)
         return {}
     end
 end
+
 
 local set_peer_down = upstream.set_peer_down
 local get_primary_peers = upstream.get_primary_peers
@@ -47,8 +53,7 @@ local get_upstreams = upstream.get_upstreams
 -- local upstream_checker_statuses = {}
 
 -- local ha_flag = false
--- local hacheck_shm_key = "master_node"
-local shm_handler
+local hacheck_shm_key = "ha_flag"
 
 local function warn(...)
     log(WARN, "healthcheck: ", ...)
@@ -66,24 +71,21 @@ local function debug(...)
 end
 
 local function ha_status(status)
-    if not shm_handler then
-        errlog("get shm handler failed")
-    end
 
     if type(status) == "boolean" then
         if status then
-            local ok, err = shm_handler:set("ha_flag", "Master")
+            local ok, err = shm_hc:set(hacheck_shm_key, "Master")
             if not ok then
                 errlog("set ha_flag failed", err)
             end
         else
-            local ok, err = shm_handler:set("ha_flag", "Slaver")
+            local ok, err = shm_hc:set(hacheck_shm_key, "Slaver")
             if not ok then
                 errlog("set ha_flag failed", err)
             end
         end
     else
-        local ok, err = shm_handler:set("ha_flag", "Disabled")
+        local ok, err = shm_hc:set(hacheck_shm_key, "Disabled")
         if not ok then
             errlog("set ha_flag failed", err)
         end
@@ -456,8 +458,8 @@ local function do_check(ctx)
     -- check if the master node
 
     local dict = ctx.dict
-    local res, err = dict:get("ha_flag")
-    if not res then
+    local res, err = dict:get(hacheck_shm_key)
+    if (not res) or (res ~= "Master") then
         if err then
             return nil, err
         end
@@ -507,6 +509,9 @@ local function update_upstream_checker_status(ctx, success)
     end
 
     local ok, err = dict:set(u)
+    if not ok then
+        errlog("update checker failed",err)
+    end
     -- upstream_checker_statuses[upstream] = cnt
 end
 
@@ -606,15 +611,15 @@ function _M.spawn_checker(opts)
         rise = 2
     end
 
-    local shm = opts.shm
-    if not shm then
-        return nil, '"shm" option required'
-    end
+    -- local shm = opts.shm
+    -- if not shm then
+    --     return nil, '"shm" option required'
+    -- end
 
-    local dict = shared[shm]
-    if not dict then
-        return nil, 'shm "' .. tostring(shm) .. '" not found'
-    end
+    -- local dict = shared[shm]
+    -- if not dict then
+    --     return nil, 'shm "' .. tostring(shm) .. '" not found'
+    -- end
 
     local u = opts.upstream
     if not u then
@@ -638,7 +643,7 @@ function _M.spawn_checker(opts)
         http_req = http_req,
         timeout = timeout,
         interval = interval,
-        dict = dict,
+        dict = shm_hc,
         fall = fall,
         rise = rise,
         statuses = statuses,
@@ -718,7 +723,6 @@ local function do_ha_check(ctx)
 
         -- update the flag to shm
         ha_status(flag)
-        ngx.log(ngx.ERR,shm_handler:get("ha_flag"))
         return true
     end
 end
@@ -749,19 +753,6 @@ function _M.checker(opts)
     -- ha timer
     local ha_interval = tonumber(opts.ha_interval)
 
-    -- set the shm hander as module layer arg
-    local shm = opts.shm
-    if not shm then
-        return nil, '"shm" option required'
-    end
-
-    local dict = shared[shm]
-    if not dict then
-        return nil, 'shm "' .. tostring(shm) .. '" not found'
-    end
-
-    shm_handler = dict
-
     if ha_interval then
         if ha_interval < 10 then
             ha_interval = 10 --set default ha check interval 10 secs
@@ -769,7 +760,7 @@ function _M.checker(opts)
 
         local ctx = {
             ha_interval = ha_interval,
-            dict = dict
+            dict = shm_hc
         }
 
         local ok, err = new_timer(0, ha_check, ctx)
@@ -857,13 +848,8 @@ function _M.status_page()
     local bits = new_tab(n * 20, 0)
     local idx = 1
 
-    -- check shm_handler
-    if not shm_handler then
-        return "Shm Status Unkown"
-    end
-
     -- add ha mode
-    local ha_flag = shm_handler:get("ha_flag")
+    local ha_flag = shm_hc:get(hacheck_shm_key)
     if ha_flag ~= "Disabled" then
         if ha_flag == "Master" then
             bits[idx] = "HA Mode: Master\n"
@@ -886,9 +872,8 @@ function _M.status_page()
         bits[idx + 1] = u
         idx = idx + 2
 
-        local ncheckers, err = shm_handler:get(u)
-        ngx.log(ngx.ERR, u)
-        ngx.log(ngx.ERR, ncheckers, err)
+        local ncheckers, err = shm_hc:get(u)
+
         if not ncheckers or ncheckers == 0 then
             bits[idx] = " (NO checkers)"
             idx = idx + 1

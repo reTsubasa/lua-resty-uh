@@ -1,4 +1,5 @@
 local pl_utils = require("pl.utils")
+local json = require("cjson.safe")
 local stream_sock = ngx.socket.tcp
 local log = ngx.log
 local ERR = ngx.ERR
@@ -898,6 +899,53 @@ function _M.status_page()
         idx = gen_peers_status_info(peers, bits, idx)
     end
     return concat(bits)
+end
+
+local function render_json(status,msg,err)
+    local tb = {}
+    tb.status = status
+    tb.msg = msg or ""
+    tb.err_msg = err or ""
+    return json.encode(tb)
+end
+
+-- return a json format info
+function _M.status()
+    local tb = {}
+    local upstreams, err = get_upstreams()
+    if not upstreams then
+        return render_json("err",nil,"failed to get upstream names: " .. err)
+    end
+
+    local ha_flag = shm_hc:get(hacheck_shm_key)
+    if not ha_flag then
+        return render_json("err", nil, "faild to get ha_flag from shm")
+    end
+    tb.ha_mode = ha_flag
+    if ha_flag == "Slaver" then
+        return render_json("ok", tb, err)
+    end
+
+    for _, upstream in ipairs(upstreams) do
+        local p_peers = get_primary_peers(upstream)
+        local b_peers = get_backup_peers(upstream)
+
+        local checked
+        local checkers = shm_hc:get(u)
+        if not checkers or checkers == 0 then
+            checked = false
+        else 
+            checked = true
+        end
+
+        -- add upstream info to the table
+        tb[upstream]["checked"] = checked
+        tb[upstream]["primary"] = p_peers
+        tb[upstream]["backup"]  = b_peers
+    end
+
+    return render_json("ok", tb, err)
+
 end
 
 return _M

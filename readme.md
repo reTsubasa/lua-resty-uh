@@ -1,8 +1,8 @@
 # Name
 
-some modify  for the lua-resty-upstream-healthcheck.
+lua-resty-upstream-healthcheck.的一点点定制
 
-简约的自动检查所有upstream，添加了exclude_lists排除列表，用于排除特定upstream的检查
+
 
 # Status
 
@@ -62,9 +62,20 @@ http {
 `luarocks install lua-resty-uh 0.0.2` 
 
 # New Feature
+## 0.0.4
+
+- 删除了*opts.shm*参数.模块绑定使用`lua_shared_dict = "healthcheck"`
+- 删除了原module参数`upstream_checker_statuses`，该参数会导致多worker及interval设置数量较大时，多个worker进程数据不同步，从而通过`status_page`函数获取到错误的数据
+- `update_upstream_checker_status`函数修改通过SHM实现多进程状态的同步
+- 添加新的json格式返回函数`_M.status()`,主要用于接口调用，该函数可以更丰富的返回节点状态信息
+- 添加可选参数`opts.ha_interval`，用于在HA部署模式下，通过检查本地`eth0`、`bond0`、`em0`接口ipv4地址数量，排除备机向upstream发起检查的简单过滤。该功能仅在`CentOS6.x`， `CentOS7.x`下测试可用
+- 伴随 `opts.ha_interval`参数的添加，函数`_M.status()`，`status_page()`，会根据参数的添加返回额外的信息。
+
+## 0.0.2
+
 - 默认检查所有upstream *version 0.0.2*
-- 在Nginx HA部署下，排除备机向upstream发起检查的简单过滤 *version 0.0.4*
-- 
+
+
 
 
 # Methods
@@ -97,7 +108,6 @@ Remove the the spawn_checker‘s option "upstream",Add new option "exclude_lists
 
 **opts：**
 
-- shm ：通过**lua_shared_dict**指令分配的缓存名称
 - type：检查协议，目前只支持**http**
 - http_req：http请求原始信息
 - interval：每一个upstream检查的间隔时间
@@ -137,11 +147,11 @@ Remove the the spawn_checker‘s option "upstream",Add new option "exclude_lists
 
 ## status_page
 
-**syntax:** `str, err = healthcheck.status_page()`
+**syntax:** `str, err = hc.status_page()`
 
 **context:** *any*
 
-Generates a detailed status report for all the upstreams defined in the current NGINX server.
+一个简单的返回节点状态的字符的函数
 
 One typical output is
 
@@ -197,4 +207,287 @@ Upstream foo
     Backup Peers
         127.0.0.1:12356 DOWN
 ```
+
+
+
+## status
+
+**syntax:** `json, err = hc.status()`
+
+**context:** *any*
+
+返回节点详细状态的的函数。返回字符格式为JSON。
+
+典型的返回如下：
+
+```json
+{
+  "err_msg": "",
+  "msg": {
+    "upstreams": [
+      {
+        "backup": [
+          {
+            "current_weight": 0,
+            "id": 0,
+            "name": "192.168.1.180:93",
+            "conns": 0,
+            "down": true,
+            "weight": 1,
+            "fail_timeout": 10,
+            "effective_weight": 1,
+            "fails": 0,
+            "max_fails": 1
+          }
+        ],
+        "name": "lintest",
+        "checked": true,
+        "primary": [
+          {
+            "current_weight": 0,
+            "id": 0,
+            "name": "192.168.1.180:91",
+            "conns": 0,
+            "down": true,
+            "weight": 1,
+            "fail_timeout": 10,
+            "effective_weight": 1,
+            "fails": 0,
+            "max_fails": 1
+          },
+          {
+            "current_weight": 0,
+            "id": 1,
+            "name": "192.168.1.180:92",
+            "conns": 0,
+            "down": true,
+            "weight": 1,
+            "fail_timeout": 10,
+            "effective_weight": 1,
+            "fails": 0,
+            "max_fails": 1
+          }
+        ]
+      },
+      {
+        "backup": [
+          {
+            "current_weight": 0,
+            "id": 0,
+            "name": "192.168.1.180:93",
+            "conns": 0,
+            "weight": 1,
+            "fail_timeout": 10,
+            "effective_weight": 1,
+            "fails": 0,
+            "max_fails": 1
+          }
+        ],
+        "name": "lintest2",
+        "checked": false,
+        "primary": [
+          {
+            "current_weight": 0,
+            "id": 0,
+            "name": "192.168.1.180:94",
+            "conns": 0,
+            "weight": 1,
+            "fail_timeout": 10,
+            "effective_weight": 1,
+            "fails": 0,
+            "max_fails": 1
+          }
+        ]
+      },
+      {
+        "backup": [
+          {
+            "current_weight": 0,
+            "id": 0,
+            "name": "192.168.1.180:93",
+            "conns": 0,
+            "down": true,
+            "weight": 1,
+            "fail_timeout": 10,
+            "effective_weight": 1,
+            "fails": 0,
+            "max_fails": 1
+          }
+        ],
+        "name": "lintest3",
+        "checked": true,
+        "primary": [
+          {
+            "current_weight": 0,
+            "id": 0,
+            "name": "192.168.1.180:94",
+            "conns": 0,
+            "down": true,
+            "weight": 1,
+            "fail_timeout": 10,
+            "effective_weight": 1,
+            "fails": 0,
+            "max_fails": 1
+          }
+        ]
+      },
+      {
+        "backup": [
+          {
+            "current_weight": 0,
+            "id": 0,
+            "name": "192.168.1.180:93",
+            "conns": 0,
+            "down": true,
+            "weight": 1,
+            "fail_timeout": 10,
+            "effective_weight": 1,
+            "fails": 0,
+            "max_fails": 1
+          }
+        ],
+        "name": "lintest4",
+        "checked": true,
+        "primary": [
+          {
+            "current_weight": 0,
+            "id": 0,
+            "name": "192.168.1.180:94",
+            "conns": 0,
+            "down": true,
+            "weight": 1,
+            "fail_timeout": 10,
+            "effective_weight": 1,
+            "fails": 0,
+            "max_fails": 1
+          }
+        ]
+      }
+    ],
+    "ha_mode": "Master"
+  },
+  "status": "ok"
+}
+
+```
+
+
+
+输出层级结构为：
+
+```
+{
+    "err_msg": "",
+    "msg": {},
+    "status": "ok"
+}
+```
+
+
+
+- status 请求执行状态，可能的返回结果有 `ok`或 `err`
+
+- err_msg 请求错误信息，当`status`返回为`err`时，才会有输出对应的错误提示
+
+- msg 主要消息体。消息内容有:
+
+  - ha_mode HA状态。可能返回的值有`Disabled`,`Master`,`Slaver`
+
+  - upstreams 节点状态的主要内容，这是一个复杂聚合的table,其主要结构为：
+
+    ``"upstreams":[upstream1,upstream2,...]`
+
+    一个upstream下的结构为：
+
+    - name: upstream的名称
+    - checked：是否进行健康度检查
+    - backup：备节点数据
+    - primary：主节点数据
+
+    ```json
+    "upstreams": [
+        {
+          "backup": [
+            {
+              "current_weight": 0,
+              "id": 0,
+              "name": "192.168.1.180:93",
+              "conns": 0,
+              "down": true,
+              "weight": 1,
+              "fail_timeout": 10,
+              "effective_weight": 1,
+              "fails": 0,
+              "max_fails": 1
+            }
+          ],
+          "name": "lintest",
+          "checked": true,
+          "primary": [
+            {
+              "current_weight": 0,
+              "id": 0,
+              "name": "192.168.1.180:91",
+              "conns": 0,
+              "down": true,
+              "weight": 1,
+              "fail_timeout": 10,
+              "effective_weight": 1,
+              "fails": 0,
+              "max_fails": 1
+            },
+            {
+              "current_weight": 0,
+              "id": 1,
+              "name": "192.168.1.180:92",
+              "conns": 0,
+              "down": true,
+              "weight": 1,
+              "fail_timeout": 10,
+              "effective_weight": 1,
+              "fails": 0,
+              "max_fails": 1
+            }
+          ]
+        }
+      ]
+    ```
+
+关于节点信息的参数：
+
+- current_weight
+
+- effective_weight
+
+- fail_timeout
+
+- fails
+
+- id
+
+  Identifier (ID) for the peer. This ID can be used to reference a peer in a group in the peer modifying API.
+
+- max_fails
+
+- name
+
+  Socket address for the current peer
+
+- weight
+
+- accessed
+
+  Timestamp for the last access (in seconds since the Epoch)
+
+- checked
+
+  Timestamp for the last check (in seconds since the Epoch)
+
+- down
+
+  Holds true if the peer has been marked as "down", otherwise this key is not present
+
+- conns
+
+  Number of active connections to the peer (this requires NGINX 1.9.0 or above).
 

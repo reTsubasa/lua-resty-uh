@@ -30,13 +30,10 @@ http {
         local hc = require "resty.uh"
 
         local ok, err = hc.checker{
-            shm = "healthcheck",  -- defined by "lua_shared_dict"
-            exclude_lists = {"a.b.com","b.c.com",}, -- 排除清单，在排除清单中upstream，不会进行检查
+            exclude_lists = {"a.b.com","b.c.com",}, -- 排除清单，不会进行检查
             type = "http",
-
             http_req = "GET /status HTTP/1.0\r\nHost: foo.com\r\n\r\n",
                     -- raw HTTP request for checking
-
             interval = 2000,  -- run the check cycle every 2 sec
             timeout = 1000,   -- 1 sec is the timeout for network operations
             fall = 3,  -- # of successive failures before turning a peer down
@@ -52,6 +49,33 @@ http {
 
 
     }
+    
+    #查看状态
+    
+    server {
+            listen       8088;
+            server_name  localhost;
+            default_type application/json;
+            # status page for all the peers:
+            location = /status {
+                access_log off;
+
+                default_type text/plain;
+                content_by_lua_block {
+                    local hc = require "resty.uh"
+                    ngx.say("Nginx Worker PID: ", ngx.worker.pid())
+                    ngx.print(hc.status_page())
+                }
+            }
+        #json 返回接口
+            location = /records {
+                access_log off;
+                content_by_lua_block {
+                    local hc = require("resty.uh")
+                    return ngx.say(hc.status())
+                }
+            }
+        }
 
 
 }
@@ -59,9 +83,9 @@ http {
 
 # Install
 
-`luarocks install lua-resty-uh 0.0.2` 
+`luarocks install lua-resty-uh` 
 
-# New Feature
+# Version Feature
 ## 0.0.4
 
 - 删除了*opts.shm*参数.模块绑定使用`lua_shared_dict = "healthcheck"`

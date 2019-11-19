@@ -20,7 +20,7 @@ local wait = ngx.thread.wait
 local pcall = pcall
 
 local _M = {
-    _VERSION = "0.0.4"
+    _VERSION = "0.0.5"
 }
 
 if not ngx.config or not ngx.config.ngx_lua_version or ngx.config.ngx_lua_version < 9005 then
@@ -44,10 +44,11 @@ local get_primary_peers = upstream.get_primary_peers
 local get_backup_peers = upstream.get_backup_peers
 local get_upstreams = upstream.get_upstreams
 
-local upstream_checker_statuses = {}
+-- local upstream_checker_statuses = {}
 
 local ha_flag = false
 local hacheck_shm_key = "master_node"
+local shm_handler
 
 local function warn(...)
     log(WARN, "healthcheck: ", ...)
@@ -466,8 +467,11 @@ local function do_check(ctx)
     end
 end
 
-local function update_upstream_checker_status(upstream, success)
-    local cnt = upstream_checker_statuses[upstream]
+local function update_upstream_checker_status(ctx, success)
+    local dict = ctx.dict
+    local upstream = ctx.upstream
+    -- local cnt = upstream_checker_statuses[upstream]
+    local cnt = dict:get(upstream)
     if not cnt then
         cnt = 0
     end
@@ -478,7 +482,8 @@ local function update_upstream_checker_status(upstream, success)
         cnt = cnt - 1
     end
 
-    upstream_checker_statuses[upstream] = cnt
+    local ok,err = dict:set(upstream)
+    -- upstream_checker_statuses[upstream] = cnt
 end
 
 local check
@@ -498,7 +503,7 @@ check = function(premature, ctx)
             errlog("failed to create timer: ", err)
         end
 
-        update_upstream_checker_status(ctx.upstream, false)
+        update_upstream_checker_status(ctx, false)
         return
     end
 end
@@ -626,7 +631,7 @@ function _M.spawn_checker(opts)
         end
     end
 
-    update_upstream_checker_status(u, true)
+    update_upstream_checker_status(ctx, true)
 
     return true
 end
@@ -634,6 +639,9 @@ end
 local function get_ha_lock(ctx)
     local dict = ctx.dict
     local key = "l:"
+
+    -- set the shm hander as module layer arg
+    shm_handler = dict
 
     -- the lock is held for the whole interval to prevent multiple
     -- worker processes from sending the test request simultaneously.
@@ -838,6 +846,11 @@ function _M.status_page()
         idx = idx + 1
     end
 
+    -- check shm_handler
+    if not shm_handler then
+        return "Shm Status Unkown"
+    end
+
     for i = 1, n do
         if i > 1 then
             bits[idx] = "\n"
@@ -850,7 +863,7 @@ function _M.status_page()
         bits[idx + 1] = u
         idx = idx + 2
 
-        local ncheckers = upstream_checker_statuses[u]
+        local ncheckers = shm_handler:get(u)
         if not ncheckers or ncheckers == 0 then
             bits[idx] = " (NO checkers)"
             idx = idx + 1

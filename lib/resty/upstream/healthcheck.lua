@@ -70,17 +70,18 @@ local function debug(...)
 end
 
 local function ha_status(status)
+    if not status then
+        local ok, err = shm_hc:set(hacheck_shm_key, "Slaver")
+        if not ok then
+            errlog("set ha_flag failed", err)
+        end
+        return
+    end
+
     if type(status) == "boolean" then
-        if status then
-            local ok, err = shm_hc:set(hacheck_shm_key, "Master")
-            if not ok then
-                errlog("set ha_flag failed", err)
-            end
-        else
-            local ok, err = shm_hc:set(hacheck_shm_key, "Slaver")
-            if not ok then
-                errlog("set ha_flag failed", err)
-            end
+        local ok, err = shm_hc:set(hacheck_shm_key, "Master")
+        if not ok then
+            errlog("set ha_flag failed", err)
         end
     else
         local ok, err = shm_hc:set(hacheck_shm_key, "Disabled")

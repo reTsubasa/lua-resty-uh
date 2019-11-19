@@ -32,8 +32,8 @@ if not ok then
     error("ngx_upstream_lua module required")
 end
 
-local ok,shm_hc = pcall(ngx.shared,"healthcheck")
-if not ok then
+local shm_hc = ngx.shared.healthcheck
+if not shm_hc then
     error("shared dict 'healthcheck' mustbe set")
 end
 

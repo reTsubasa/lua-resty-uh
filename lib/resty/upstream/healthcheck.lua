@@ -901,7 +901,7 @@ function _M.status_page()
     return concat(bits)
 end
 
-local function render_json(status,msg,err)
+local function render_json(status, msg, err)
     local tb = {}
     tb.status = status
     tb.msg = msg or ""
@@ -914,7 +914,7 @@ function _M.status()
     local tb = {}
     local upstreams, err = get_upstreams()
     if not upstreams then
-        return render_json("err",nil,"failed to get upstream names: " .. err)
+        return render_json("err", nil, "failed to get upstream names: " .. err)
     end
 
     local ha_flag = shm_hc:get(hacheck_shm_key)
@@ -926,6 +926,7 @@ function _M.status()
         return render_json("ok", tb, err)
     end
 
+    tb.upstreams = {}
     for _, upstream in ipairs(upstreams) do
         local p_peers = get_primary_peers(upstream)
         local b_peers = get_backup_peers(upstream)
@@ -934,19 +935,20 @@ function _M.status()
         local checkers = shm_hc:get(u)
         if not checkers or checkers == 0 then
             checked = false
-        else 
+        else
             checked = true
         end
 
         -- add upstream info to the table
-        tb[upstream] = {}
-        tb[upstream]["checked"] = checked
-        tb[upstream]["primary"] = p_peers
-        tb[upstream]["backup"]  = b_peers
+        local up = {}
+        up.checked = checked
+        up.primary = p_peers
+        up.backup = b_peers
+
+        table.insert(tb.upstreams, up)
     end
 
     return render_json("ok", tb, err)
-
 end
 
 return _M

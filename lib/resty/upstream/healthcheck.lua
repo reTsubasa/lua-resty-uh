@@ -469,9 +469,9 @@ end
 
 local function update_upstream_checker_status(ctx, success)
     local dict = ctx.dict
-    local upstream = ctx.upstream
+    local u = ctx.upstream
     -- local cnt = upstream_checker_statuses[upstream]
-    local cnt = dict:get(upstream)
+    local cnt = dict:get(u)
     if not cnt then
         cnt = 0
     end
@@ -482,7 +482,7 @@ local function update_upstream_checker_status(ctx, success)
         cnt = cnt - 1
     end
 
-    local ok,err = dict:set(upstream)
+    local ok,err = dict:set(u)
     -- upstream_checker_statuses[upstream] = cnt
 end
 

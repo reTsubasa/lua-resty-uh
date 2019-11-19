@@ -932,7 +932,7 @@ function _M.status()
         local b_peers = get_backup_peers(upstream)
 
         local checked
-        local checkers = shm_hc:get(u)
+        local checkers = shm_hc:get(upstream)
         if not checkers or checkers == 0 then
             checked = false
         else
@@ -941,6 +941,7 @@ function _M.status()
 
         -- add upstream info to the table
         local up = {}
+        up.name = upstream
         up.checked = checked
         up.primary = p_peers
         up.backup = b_peers

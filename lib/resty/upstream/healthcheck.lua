@@ -718,6 +718,7 @@ local function do_ha_check(ctx)
 
         -- update the flag to shm
         ha_status(flag)
+        ngx.log(ngx.ERR,shm_handler:get("ha_flag"))
         return true
     end
 end

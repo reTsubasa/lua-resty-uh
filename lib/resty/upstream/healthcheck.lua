@@ -565,7 +565,13 @@ end
 local function update_upstream_checker_status(ctx, success)
     local dict = ctx.dict
     local u = ctx.upstream
-    -- local cnt = upstream_checker_statuses[upstream]
+
+    -- check if in ex_list
+    local ok,err = in_ex_lists(u)
+    if ok then
+        return 
+    end
+
     local cnt = dict:get(u)
     if not cnt then
         cnt = 0
@@ -819,6 +825,7 @@ end
 
 -- main function
 function _M.checker(opts)
+
     -- ha timer
     local ha_interval = tonumber(opts.ha_interval)
 

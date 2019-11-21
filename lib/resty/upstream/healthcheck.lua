@@ -187,11 +187,13 @@ local function set_peer_down_globally(ctx, is_backup, id, value)
     end
 end
 
-local function peer_fail(ctx, is_backup, id, peer)
+-- add a new optional input arg:gray,a boolean type arg indicate the failed from gray_require
+local function peer_fail(ctx, is_backup, id, peer, gray)
     debug("peer ", peer.name, " was checked to be not ok")
 
     local u = ctx.upstream
     local dict = ctx.dict
+    local gray_fails = ctx.fall + 1
 
     local key = gen_peer_key("nok:", u, is_backup, id)
     local fails, err = dict:get(key)
@@ -200,23 +202,32 @@ local function peer_fail(ctx, is_backup, id, peer)
             errlog("failed to get peer nok key: ", err)
             return
         end
-        fails = 1
+        if gray then
+            fails = gray_fails
+        else
+            fails = 1
+        end
 
         -- below may have a race condition, but it is fine for our
         -- purpose here.
-        local ok, err = dict:set(key, 1)
+        local ok, err = dict:set(key, fails)
         if not ok then
             errlog("failed to set peer nok key: ", err)
         end
     else
-        fails = fails + 1
-        local ok, err = dict:incr(key, 1)
+        if gray then
+            fails = gray_fails
+        else
+            fails = fails + 1
+        end
+
+        local ok, err = dict:set(key, fails)
         if not ok then
             errlog("failed to incr peer nok key: ", err)
         end
     end
 
-    if fails == 1 then
+    if (fails == 1) or (gray == true) then
         key = gen_peer_key("ok:", u, is_backup, id)
         local succ, err = dict:get(key)
         if not succ or succ == 0 then
@@ -302,11 +313,42 @@ local function peer_error(ctx, is_backup, id, peer, ...)
     peer_fail(ctx, is_backup, id, peer)
 end
 
+local function set_gray_peer(upstream, peer_name, ttl)
+    if (not upstream) or (not peer_name) then
+        return nil, "upstream name and peer_name mustbe given"
+    end
+    if type(upstream) ~= "string" or type(peer_name) ~= "string" then
+        return nil, "upstream name and peer_name type mustbe string"
+    end
+    if type(tonumber(ttl)) ~= "number" then
+        return nil, "ttl mustbe a number"
+    end
+
+    local gray_key_value = "grayed"
+    local gray_key = "gray:" .. upstream .. peer_name
+    local ok, err = shm_hc:set(gray_key, gray_key_value, ttl)
+    if not ok then
+        local msg = "set gray key into shm failed" .. (err or "")
+        errlog(msg)
+        return nil, msg
+    end
+    return true
+end
+
 local function check_peer(ctx, id, peer, is_backup)
     local ok
     local name = peer.name
     local statuses = ctx.statuses
     local req = ctx.http_req
+
+    -- before do a real check,check if the peer in the gray status
+    local u = ctx.upstream
+    local gray_key = "gray:" .. u .. name
+    -- check gray_key if in shm
+    local ok = shm_hc:get(gray_key)
+    if ok then
+        return peer_fail(ctx, is_backup, id, peer, true)
+    end
 
     local sock, err = stream_sock()
     if not sock then
@@ -1050,12 +1092,12 @@ local function api_ex_list(req)
         return render_json("err", nil, "Arg 'a' action error")
     end
 
-    if type(ttl) ~= "number" then
+    if type(tonumber(ttl)) ~= "number" then
         ttl = 0
     end
 
     if act == "set" then
-        local ok,err = setin_ex_lists(name,ttl)
+        local ok, err = setin_ex_lists(name, ttl)
         if not ok then
             return render_json("err", nil, err)
         end
@@ -1063,26 +1105,72 @@ local function api_ex_list(req)
     end
 
     if act == "get" then
-        local ok,err = in_ex_lists(name)
-        if not ok then
+        local ok, err = in_ex_lists(name)
+        if err then
             return render_json("err", nil, err)
         end
-        return render_json("ok", "In exclude_lists", nil)
+        if not ok then
+           render_json("ok", "not found", nil) 
+        end
+        return render_json("ok", "found", nil)
     end
 
     if act == "del" then
-        local ok,err = del_ex_lists(name)
+        local ok, err = del_ex_lists(name)
         if not ok then
             return render_json("err", nil, err)
         end
         return render_json("ok", "Delete succeded", nil)
     end
-    
+end
 
+local function api_gray_peer(req)
+    local uri_args = req.uri_args
+    local name = uri_args.u
+    local peer = uri_args.p
+    local act = uri_args.a
+    local ttl = uri_args.ttl
+
+    if type(name) ~= "string" then
+        return render_json("err", nil, "Arg 'u' type error")
+    end
+    if type(peer) ~= "string" then
+        return render_json("err", nil, "Arg 'p' type error")
+    end
+    if type(tonumber(ttl)) ~= "number" or ttl == 0 then
+        return render_json("err", nil, "Arg 'ttl' error")
+    end
+    if type(act) ~= "string" then
+        return render_json("err", nil, "Arg 'a' type error")
+    end
+
+    if act == "set" then
+        local ok, err = set_gray_peer(name, peer, ttl)
+        if not ok then
+            return render_json("err", nil, err)
+        end
+        return render_json("ok", "Set into shm succeded", nil)
+    end
+
+    if act == "get" then
+        local gray_key = "gray:".. name .. peer
+        local val = shm_hc:get(gray_key)
+        if val then
+            return render_json("ok", "found", nil)
+        end
+        return render_json("ok", "not found", nil)
+    end
+
+    if act == "del" then
+        local gray_key = "gray:".. name .. peer
+        shm_hc:delete(gray_key)
+        render_json("ok", "Delete succeded", nil)
+    end
 end
 
 local router = {
     ex = api_ex_list(req),
+    gray = api_gray_peer(req)
 }
 
 -- api main endpoint
@@ -1112,8 +1200,6 @@ function _M.status()
     else
         return render_json("err", nil, "Target not specified")
     end
-
-    
 end
 
 return _M

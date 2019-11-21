@@ -2,6 +2,8 @@
 
 lua-resty-upstream-healthcheck.的一点点定制
 
+[toc]
+
 
 
 # Status
@@ -533,9 +535,9 @@ Upstream foo
 
 
 
-## API定义
+# API定义
 
-### exclude_lists
+## exclude_lists
 
 **method**：GET
 
@@ -550,3 +552,26 @@ Upstream foo
 
 **example**：
 
+
+
+
+
+# 作用逻辑
+
+```mermaid
+graph LR
+B(check定时器) -->|检查M/S| A[HA定时器]
+		A-->|写入SHM| A1(SHM:ha_flag ) 
+
+B -->|检查排除列表| C(exclude_lists)
+C1(SHM:ex...) -->|检查是否排除|C 
+
+C(exclude_lists)-->D(do_check)
+
+A1(SHM:ha_flag ) -->|检查HA|D(do_check)
+
+D(do_check) --> E(check_peers)
+
+E(check_peers) --> F(check_peer)
+
+```

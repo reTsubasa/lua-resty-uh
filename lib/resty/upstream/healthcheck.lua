@@ -1088,7 +1088,7 @@ local function api_ex_list(req)
         return render_json("err", nil, "Arg 'a' type error")
     end
 
-    if act ~= "set" or act ~= "del" or act ~= "get" then
+    if act ~= "set" and act ~= "del" and act ~= "get" then
         return render_json("err", nil, "Arg 'a' action error")
     end
 

@@ -592,7 +592,7 @@ check = function(premature, ctx)
     -- check the upstream name in ex_lists or not
     local name = ctx.upstream
     local val, err = in_ex_lists(name)
-    ngx.log(ngx.ERR,name,":",val,":",err)
+
     if err then
         errlog(err)
     end
@@ -989,6 +989,10 @@ function _M.status()
             checked = true
         end
 
+        if upstream == "lintest2" then
+            ngx.log(ngx.ERR,checkers)
+            ngx.log(ngx.ERR,checked)
+        end
         -- add upstream info to the table
         local up = {}
         up.name = upstream

@@ -567,9 +567,9 @@ local function update_upstream_checker_status(ctx, success)
     local u = ctx.upstream
 
     -- check if in ex_list
-    local ok,err = in_ex_lists(u)
+    local ok, err = in_ex_lists(u)
     if ok then
-        return 
+        return
     end
 
     local cnt = dict:get(u)
@@ -604,7 +604,6 @@ check = function(premature, ctx)
     end
 
     if not val then
-        ngx.log(ngx.ERR,name)
         local ok, err = pcall(do_check, ctx)
         if not ok then
             errlog("failed to run healthcheck cycle: ", err)
@@ -825,7 +824,6 @@ end
 
 -- main function
 function _M.checker(opts)
-
     -- ha timer
     local ha_interval = tonumber(opts.ha_interval)
 
@@ -997,10 +995,6 @@ function _M.status()
             checked = true
         end
 
-        if upstream == "lintest2" then
-            ngx.log(ngx.ERR,checkers)
-            ngx.log(ngx.ERR,checked)
-        end
         -- add upstream info to the table
         local up = {}
         up.name = upstream

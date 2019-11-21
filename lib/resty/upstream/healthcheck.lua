@@ -1032,6 +1032,59 @@ local function valid(req)
     end
 end
 
+local function api_ex_list(req)
+    local uri_args = req.uri_args
+    local name = uri_args.u
+    local act = uri_args.a
+    local ttl = uri_args.ttl or 0
+
+    if type(name) ~= "string" then
+        return render_json("err", nil, "Arg 'u' type error")
+    end
+
+    if type(act) ~= "string" then
+        return render_json("err", nil, "Arg 'a' type error")
+    end
+
+    if act ~= "set" or act ~= "del" or act ~= "get" then
+        return render_json("err", nil, "Arg 'a' action error")
+    end
+
+    if type(ttl) ~= "number" then
+        ttl = 0
+    end
+
+    if act == "set" then
+        local ok,err = setin_ex_lists(name,ttl)
+        if not ok then
+            return render_json("err", nil, err)
+        end
+        return render_json("ok", "Set into shm succeded", nil)
+    end
+
+    if act == "get" then
+        local ok,err = in_ex_lists(name)
+        if not ok then
+            return render_json("err", nil, err)
+        end
+        return render_json("ok", "In exclude_lists", nil)
+    end
+
+    if act == "del" then
+        local ok,err = del_ex_lists(name)
+        if not ok then
+            return render_json("err", nil, err)
+        end
+        return render_json("ok", "Delete succeded", nil)
+    end
+    
+
+end
+
+local router = {
+    ex = api_ex_list(req),
+}
+
 -- api main endpoint
 function _M.status()
     local req = {}
@@ -1051,10 +1104,16 @@ function _M.status()
     end
 
     if uri_args.t then
-        return router[uri_args.t](req)
+        if router[uri_args.t] then
+            return router[uri_args.t](req)
+        else
+            return render_json("err", nil, "Target not supported")
+        end
+    else
+        return render_json("err", nil, "Target not specified")
     end
 
-    return render_json("err", nil, "404 not found")
+    
 end
 
 return _M

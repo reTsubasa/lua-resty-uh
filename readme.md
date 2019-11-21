@@ -94,7 +94,7 @@ http {
 
 - 增加了管理`exclude_lists`排除列表记录的接口，提供添加、删除、查询功能。
 
-  **注意：**由于`exclude_lists`列表从本版本后通过shared.dict实现，所以通过接口添加的记录，会在缓存失效(如Nginx master进程更滑后)丢失记录。如果需要持久化的保持记录，还是应该通过检查函数参数中添加。
+  **注意：**由于`exclude_lists`列表从本版本后通过shared.dict实现，所以通过接口添加的记录，会在缓存失效(如Nginx master进程更换后)丢失记录。如果需要持久化的保持记录，还是应该通过检查函数参数中添加。
 
 ## 0.0.4
 
@@ -530,4 +530,23 @@ Upstream foo
 - conns
 
   Number of active connections to the peer (this requires NGINX 1.9.0 or above).
+
+
+
+## API定义
+
+### exclude_lists
+
+**method**：GET
+
+**args**: 
+
+| key  | 参数                                      | 类型   | 必须  | 描述                                                         |
+| ---- | ----------------------------------------- | ------ | ----- | ------------------------------------------------------------ |
+| t    | `ex`                                      | string | true  | 接口请求的对象                                               |
+| u    | upstream名称                              | string | true  | upstream名称需要和`nginx.conf`中的名称保持一致               |
+| a    | `set`：添加<br>`del`: 删除 <br>`get`:查询 | string | true  | 请求的动作，仅支持参数列表中的三种动作                       |
+| ttl  | 失效时间                                  | number | false | 仅在`a=set`，添加新记录时，可以增加额外的可选参数ttl，用于描述该条策略的失效时间，失效时间单位为**秒**，到时间后，该记录会从缓存中自动删除。如果不添加该参数，则默认为**0**，该记录不失效 |
+
+**example**：
 

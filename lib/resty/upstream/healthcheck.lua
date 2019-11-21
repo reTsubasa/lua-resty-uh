@@ -592,6 +592,7 @@ check = function(premature, ctx)
     -- check the upstream name in ex_lists or not
     local name = ctx.upstream
     local val, err = in_ex_lists(name)
+    ngx.log(ngx.ERR,name,":",val,":",err)
     if err then
         errlog(err)
     end
@@ -687,16 +688,6 @@ function _M.spawn_checker(opts)
     if not rise then
         rise = 2
     end
-
-    -- local shm = opts.shm
-    -- if not shm then
-    --     return nil, '"shm" option required'
-    -- end
-
-    -- local dict = shared[shm]
-    -- if not dict then
-    --     return nil, 'shm "' .. tostring(shm) .. '" not found'
-    -- end
 
     local u = opts.upstream
     if not u then

@@ -111,6 +111,7 @@ local function in_ex_lists(name)
     end
     local key = gen_ex_key(name)
     if not key then
+        errlog"gen exclude_list key error"
         return nil, "gen exclude_list key error"
     end
     local res, err = shm_hc:get(key)
@@ -611,6 +612,10 @@ local function update_upstream_checker_status(ctx, success)
     -- check if in ex_list
     local ok, err = in_ex_lists(u)
     if ok then
+        local ok, err = dict:set(u, 0)
+        if not ok then
+            errlog("update checker failed", err)
+        end
         return
     end
 

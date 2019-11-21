@@ -97,6 +97,12 @@ http {
 - 增加了管理`exclude_lists`排除列表记录的接口，提供添加、删除、查询功能。
 
   **注意：**由于`exclude_lists`列表从本版本后通过shared.dict实现，所以通过接口添加的记录，会在缓存失效(如Nginx master进程更换后)丢失记录。如果需要持久化的保持记录，还是应该通过检查函数参数中添加。
+  
+- 添加了可以手动指定特定upstream下的节点下线的功能，设计目的主要是为了发布时提供简单的后端灰度能力(可以手动的屏蔽部分节点)，该功能必须通过接口来操作。
+
+- 提供了`exclude_lists`和`peer_manual_down`的增删查接口
+
+  
 
 ## 0.0.4
 
@@ -558,7 +564,7 @@ Upstream foo
 
 
 
-## peer_gray_down
+## peer_manual_down
 
 操作特定节点手动down(不论后端是否实际down)
 
@@ -569,7 +575,7 @@ Upstream foo
 **args**: 
 | key  | 参数                                      | 类型   | 必须 | 描述                                                         |
 | ---- | ----------------------------------------- | ------ | ---- | ------------------------------------------------------------ |
-| t    | `gray`                                    | string | true | 接口请求的对象，peer_gray_down                               |
+| t    | `gray`                                    | string | true | 接口请求的对象，peer_manual_down                             |
 | u    | upstream名称                              | string | true | upstream名称需要和`nginx.conf`中的名称保持一致               |
 | p    | upstream中的后端节点                      | string | true | 常见的记录为`IP:PORT`或`域名`格式。注意名称必须与`nginx.conf`中配置的内容**完全一致**。 |
 | a    | `set`：添加<br>`del`: 删除 <br>`get`:查询 | string | true | 请求的动作，仅支持参数列表中的三种动作                       |

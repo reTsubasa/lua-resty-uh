@@ -598,6 +598,7 @@ check = function(premature, ctx)
     end
 
     if not val then
+        ngx.log(ngx.ERR,name)
         local ok, err = pcall(do_check, ctx)
         if not ok then
             errlog("failed to run healthcheck cycle: ", err)

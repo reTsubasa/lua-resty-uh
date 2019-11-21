@@ -21,7 +21,7 @@ local wait = ngx.thread.wait
 local pcall = pcall
 
 local _M = {
-    _VERSION = "0.0.4"
+    _VERSION = "0.0.5"
 }
 
 if not ngx.config or not ngx.config.ngx_lua_version or ngx.config.ngx_lua_version < 9005 then
@@ -68,6 +68,75 @@ local function debug(...)
     if debug_mode then
         log(DEBUG, "healthcheck: ", ...)
     end
+end
+
+-- func gen the exclude_lists's record's key in SHM
+local function gen_ex_key(name)
+    local ex_pre_fix = "ex:"
+    if (not name) or (type(name) ~= "string") then
+        local msg = "gen exclude_list's key upstream must given"
+        errlog(msg)
+        return nil, msg
+    end
+    return ex_pre_fix .. name
+end
+
+-- func set the exclude_list record into shm
+local function setin_ex_lists(name, ttl)
+    if not name or type(name) ~= "string" then
+        errlog("upstream name must be given")
+        return nil, "name must be given"
+    end
+
+    local key = gen_ex_key(name)
+    if not key then
+        return nil, "gen exclude_list key error"
+    end
+    ttl = tonumber(ttl) or 0
+
+    local ex_value = "ex"
+    local ok, err = shm_hc:set(key, ex_value, ttl)
+    if not ok then
+        errlog("set key to shm failed", key, err)
+        return nil, err
+    end
+    return true
+end
+
+-- func if the upstream name in exclude_lists at shm
+local function in_ex_lists(name)
+    if not name or type(name) ~= "string" then
+        errlog("upstream name must be given")
+        return nil, "name must be given"
+    end
+    local key = gen_ex_key(name)
+    if not key then
+        return nil, "gen exclude_list key error"
+    end
+    local res, err = shm_hc:get(key)
+    if not res then
+        if err then
+            errlog(err)
+        end
+        return nil
+    end
+    return true
+end
+
+-- func del the upstream name in exclude_lists at shm
+local function del_ex_lists(name)
+    if not name or type(name) ~= "string" then
+        errlog("upstream name must be given")
+        return nil, "name must be given"
+    end
+    local key = gen_ex_key(name)
+    if not key then
+        return nil, "gen exclude_list key error"
+    end
+
+    shm_hc:delete(key)
+
+    return true
 end
 
 local function ha_status(status)
@@ -520,9 +589,18 @@ check = function(premature, ctx)
         return
     end
 
-    local ok, err = pcall(do_check, ctx)
-    if not ok then
-        errlog("failed to run healthcheck cycle: ", err)
+    -- check the upstream name in ex_lists or not
+    local name = ctx.upstream
+    local val, err = in_ex_lists(name)
+    if err then
+        errlog(err)
+    end
+
+    if not val then
+        local ok, err = pcall(do_check, ctx)
+        if not ok then
+            errlog("failed to run healthcheck cycle: ", err)
+        end
     end
 
     local ok, err = new_timer(ctx.interval, check, ctx)
@@ -771,49 +849,30 @@ function _M.checker(opts)
     end
 
     -- exclude_lists
-    local ept_ex_list = nil
-
     local ex_lists = opts.exclude_lists or {}
-    if ex_lists and type(ex_lists) ~= "table" then
+    if type(ex_lists) ~= "table" then
+        errlog('"exclude_lists" type error')
         return nil, '"exclude_lists" type must be table'
     end
 
-    if #ex_lists == 0 then
-        -- all upstream need check
-        ept_ex_list = true
+    for _, name in ipairs(ex_lists) do
+        local ok, err = setin_ex_lists(name)
+        if not ok then
+            errlog(err)
+            return nil, err
+        end
     end
 
     local ups = get_upstreams()
     for _, name in ipairs(ups) do
-        -- exclude name in exlcude_lists
-        if not ept_ex_list then
-            local check_flag = true
-            for _, up in ipairs(ex_lists) do
-                if name == up then
-                    check_flag = nil
-                end
-            end
-            if check_flag then
-                -- rewrite the opts.upstream as the new name
-                opts["upstream"] = nil
-                opts["upstream"] = name
+        -- rewrite the opts.upstream as the new name
+        opts["upstream"] = nil
+        opts["upstream"] = name
 
-                -- call the former spawn_checker func
-                local ok, err = _M.spawn_checker(opts)
-                if not ok then
-                    return nil, err
-                end
-            end
-        else
-            -- rewrite the opts.upstream as the new name
-            opts["upstream"] = nil
-            opts["upstream"] = name
-
-            -- call the former spawn_checker func
-            local ok, err = _M.spawn_checker(opts)
-            if not ok then
-                return nil, err
-            end
+        -- call the former spawn_checker func
+        local ok, err = _M.spawn_checker(opts)
+        if not ok then
+            return nil, err
         end
     end
 

@@ -539,13 +539,17 @@ Upstream foo
 
 ## exclude_lists
 
+操作不检查清单的的upstream(checker)。
+
+**注意**：非通过`opts`参数添加的upstream，因记录保存在缓存中，在Nginx master进程crash后，记录会消失，普通的HUP(`nginx -s reload`)则不受影响。
+
 **method**：GET
 
 **args**: 
 
 | key  | 参数                                      | 类型   | 必须  | 描述                                                         |
 | ---- | ----------------------------------------- | ------ | ----- | ------------------------------------------------------------ |
-| t    | `ex`                                      | string | true  | 接口请求的对象                                               |
+| t    | `ex`                                      | string | true  | 接口请求的对象，exclude_lists                                |
 | u    | upstream名称                              | string | true  | upstream名称需要和`nginx.conf`中的名称保持一致               |
 | a    | `set`：添加<br>`del`: 删除 <br>`get`:查询 | string | true  | 请求的动作，仅支持参数列表中的三种动作                       |
 | ttl  | 失效时间                                  | number | false | 仅在`a=set`，添加新记录时，可以增加额外的可选参数ttl，用于描述该条策略的失效时间，失效时间单位为**秒**，到时间后，该记录会从缓存中自动删除。如果不添加该参数，则默认为**0**，该记录不失效 |
@@ -553,6 +557,27 @@ Upstream foo
 **example**：
 
 
+
+## peer_gray_down
+
+操作特定节点手动down(不论后端是否实际down)
+
+**注意**：因记录保存在缓存中，在Nginx master进程crash后，记录会消失，普通的HUP(`nginx -s reload`)则不受影响。当指定的`ttl`超时时间过期过，缓存中该记录将会过期(失效)。
+
+**method**：GET
+
+**args**: 
+| key  | 参数                                      | 类型   | 必须 | 描述                                                         |
+| ---- | ----------------------------------------- | ------ | ---- | ------------------------------------------------------------ |
+| t    | `gray`                                    | string | true | 接口请求的对象，peer_gray_down                               |
+| u    | upstream名称                              | string | true | upstream名称需要和`nginx.conf`中的名称保持一致               |
+| p    | upstream中的后端节点                      | string | true | 常见的记录为`IP:PORT`或`域名`格式。注意名称必须与`nginx.conf`中配置的内容**完全一致**。 |
+| a    | `set`：添加<br>`del`: 删除 <br>`get`:查询 | string | true | 请求的动作，仅支持参数列表中的三种动作                       |
+| ttl  | 失效时间                                  | number | true | 仅在`a=set`，添加新记录时，可以增加额外的可选参数ttl，用于描述该条策略的失效时间，失效时间单位为**秒**，到时间后，该记录会从缓存中自动删除。如果不添加该参数，则默认为**0**，该记录不失效 |
+
+
+
+**example**:
 
 
 
@@ -573,5 +598,6 @@ A1(SHM:ha_flag ) -->|检查HA|D(do_check)
 D(do_check) --> E(check_peers)
 
 E(check_peers) --> F(check_peer)
+
 
 ```

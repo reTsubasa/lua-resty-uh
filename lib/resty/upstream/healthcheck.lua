@@ -1169,8 +1169,8 @@ local function api_gray_peer(req)
 end
 
 local router = {
-    ex = api_ex_list(req),
-    gray = api_gray_peer(req)
+    ex = api_ex_list,
+    gray = api_gray_peer,
 }
 
 -- api main endpoint

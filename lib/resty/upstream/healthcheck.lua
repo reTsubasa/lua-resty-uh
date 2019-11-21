@@ -965,8 +965,7 @@ local function render_json(status, msg, err)
     return json.encode(tb)
 end
 
--- return a json format info
-function _M.status()
+local function all_status()
     local tb = {}
     local upstreams, err = get_upstreams()
     if not upstreams then
@@ -1006,6 +1005,56 @@ function _M.status()
     end
 
     return render_json("ok", tb, err)
+end
+
+-- fetch all the args once,and set to the upvalue req
+local function collect_args(req)
+    req.method = ngx.req.get_method()
+    req.uri_args = ngx.req.get_uri_args() or false
+end
+
+-- valid the req args
+local function valid(req)
+    local method = req.method
+    if method ~= "GET" then
+        return nil, "Method not supported"
+    end
+
+    local uri_args = req.uri_args
+    if uri_args and type(uri_args) ~= "table" then
+        return nil, "Request args error"
+    end
+
+    for key, value in pairs(uri_args) do
+        if type(value) == "table" then
+            return nil, "Request args error"
+        end
+    end
+end
+
+-- api main endpoint
+function _M.status()
+    local req = {}
+
+    -- fetch request args
+    collect_args(req)
+
+    -- request args valid
+    local ok, err = valid(req)
+    if not ok then
+        render_json("err", nil, err)
+    end
+
+    local uri_args = req.uri_args
+    if not uri_args then
+        return all_status()
+    end
+
+    if uri_args.t then
+        return router[uri_args.t](req)
+    end
+
+    return render_json("err", nil, "404 not found")
 end
 
 return _M

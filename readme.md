@@ -86,6 +86,16 @@ http {
 `luarocks install lua-resty-uh` 
 
 # Version Feature
+## 0.05
+
+- 修改`exclude_lists`列表通过shared.dict实现
+
+- 原`status()`函数变更用途，作为API主入口存在。在不包含参数请求的场景下，实现与0.0.4版本保持一致
+
+- 增加了管理`exclude_lists`排除列表记录的接口，提供添加、删除、查询功能。
+
+  **注意：**由于`exclude_lists`列表从本版本后通过shared.dict实现，所以通过接口添加的记录，会在缓存失效(如Nginx master进程更滑后)丢失记录。如果需要持久化的保持记录，还是应该通过检查函数参数中添加。
+
 ## 0.0.4
 
 - 删除了*opts.shm*参数.模块绑定使用`lua_shared_dict = "healthcheck"`
@@ -240,7 +250,13 @@ Upstream foo
 
 **context:** *any*
 
-返回节点详细状态的的函数。返回字符格式为JSON。
+接口主函数。目前仅接受`GET`请求，参数通过uri拼接完成(为了便于一线同学可以通过浏览器简单操作)。
+
+接口提供主要提供：
+
+### all_status
+
+不带任何参数请求，返回节点详细状态的的函数。返回字符格式为JSON。
 
 典型的返回如下：
 

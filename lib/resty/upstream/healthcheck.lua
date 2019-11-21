@@ -1187,9 +1187,6 @@ function _M.status()
     end
 
     local uri_args = req.uri_args
-    if not uri_args then
-        return all_status()
-    end
 
     if uri_args.t then
         if router[uri_args.t] then
@@ -1198,7 +1195,7 @@ function _M.status()
             return render_json("err", nil, "Target not supported")
         end
     else
-        return render_json("err", nil, "Target not specified")
+        return all_status()
     end
 end
 

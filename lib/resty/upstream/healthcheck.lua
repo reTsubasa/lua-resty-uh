@@ -82,6 +82,7 @@ local function gen_ex_key(name)
 end
 
 -- func set the exclude_list record into shm
+ 
 local function setin_ex_lists(name, ttl)
     if not name or type(name) ~= "string" then
         errlog("upstream name must be given")
@@ -104,6 +105,17 @@ local function setin_ex_lists(name, ttl)
 end
 
 -- func if the upstream name in exclude_lists at shm
+-- while the first return as "nil",it has mean then record not in the shm
+-- so if want to check the fucntion worked,should check the second return first
+-- ex:
+        -- local ok,err = in_ex_list(name)
+        -- if err then
+        --     -- log something 
+        -- end
+        -- if ok then
+        --     -- got the record
+        -- end
+
 local function in_ex_lists(name)
     if not name or type(name) ~= "string" then
         errlog("upstream name must be given")
@@ -611,6 +623,10 @@ local function update_upstream_checker_status(ctx, success)
 
     -- check if in ex_list
     local ok, err = in_ex_lists(u)
+    if err then
+        errlog(err)
+    end
+
     if ok then
         local ok, err = dict:set(u, 0)
         if not ok then

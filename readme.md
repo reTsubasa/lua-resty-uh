@@ -616,37 +616,35 @@ http://host/endpoint?t=ex&u=upstream_name&a=get
 http://host/endpoint?t=gray&u=upstream_name&a=set&p=peer_ip:peer_port&ttl=60
 ```
 
+```json
+{"err_msg":"","msg":"Set into shm succeded","status":"ok"}
+```
+
+
+
 **del**
 
 ```http
-http://host/endpoint?t=ex&u=upstream_name&a=get
+http://host/endpoint?t=gray&u=upstream_name&a=del&p=peer_ip:peer_port
 ```
+
+```json
+{"err_msg":"","msg":"Delete succeded","status":"ok"}
+```
+
+
 
 **get**
 
 ```http
-http://host/endpoint?t=ex&u=upstream_name&a=del
+http://host/endpoint?t=gray&u=upstream_name&a=get&p=peer_ip:peer_port
+```
+
+```json
+{"err_msg":"","msg":"found","status":"ok"}
 ```
 
 
 
 # 作用逻辑
 
-```mermaid
-graph LR
-B(check定时器) -->|检查M/S| A[HA定时器]
-		A-->|写入SHM| A1(SHM:ha_flag ) 
-
-B -->|检查排除列表| C(exclude_lists)
-C1(SHM:ex...) -->|检查是否排除|C 
-
-C(exclude_lists)-->D(do_check)
-
-A1(SHM:ha_flag ) -->|检查HA|D(do_check)
-
-D(do_check) --> E(check_peers)
-
-E(check_peers) --> F(check_peer)
-
-
-```

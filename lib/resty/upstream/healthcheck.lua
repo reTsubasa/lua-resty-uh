@@ -630,7 +630,6 @@ local function update_upstream_checker_status(ctx, success)
     if not ok then
         errlog("update checker status failed: ", err)
     end
-    -- upstream_checker_statuses[upstream] = cnt
 end
 
 local check
@@ -780,8 +779,6 @@ function _M.spawn_checker(opts)
             return nil, "failed to create timer: " .. err
         end
     end
-
-    -- update_upstream_checker_status(ctx, true)
 
     return true
 end

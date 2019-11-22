@@ -1145,11 +1145,11 @@ local function api_ex_list(req)
         if not ok then
             return render_json("err", nil, err)
         end
-        -- update the checker
-        local tb = {}
-        tb.dict = shm_hc
-        tb.upstream = name
-        update_upstream_checker_status(tb,true)
+        -- -- update the checker
+        -- local tb = {}
+        -- tb.dict = shm_hc
+        -- tb.upstream = name
+        -- update_upstream_checker_status(tb,true)
         return render_json("ok", "Delete succeded", nil)
     end
 end

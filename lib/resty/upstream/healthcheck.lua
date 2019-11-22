@@ -1125,6 +1125,11 @@ local function api_ex_list(req)
         if not ok then
             return render_json("err", nil, err)
         end
+        -- update the checker
+        local tb = {}
+        tb.dict = shm_hc
+        tb.upstream = name
+        update_upstream_checker_status(tb,true)
         return render_json("ok", "Delete succeded", nil)
     end
 end
@@ -1188,7 +1193,7 @@ function _M.status()
     -- request args valid
     local ok, err = valid(req)
     if not ok then
-        render_json("err", nil, err)
+        return render_json("err", nil, err)
     end
 
     local uri_args = req.uri_args

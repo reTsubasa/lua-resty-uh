@@ -672,8 +672,9 @@ check = function(premature, ctx)
         if not ok then
             errlog("failed to run healthcheck cycle: ", err)
         end
+        update_upstream_checker_status(ctx,true)
     else
-        update_upstream_checker_status(ctx,nil)
+        update_upstream_checker_status(ctx,false)
     end
 
     local ok, err = new_timer(ctx.interval, check, ctx)
@@ -800,7 +801,7 @@ function _M.spawn_checker(opts)
         end
     end
 
-    update_upstream_checker_status(ctx, true)
+    -- update_upstream_checker_status(ctx, true)
 
     return true
 end

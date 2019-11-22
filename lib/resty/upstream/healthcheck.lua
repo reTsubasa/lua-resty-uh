@@ -626,7 +626,7 @@ local function update_upstream_checker_status(ctx, success)
     if err then
         errlog(err)
     end
-
+    ngx.log(ngx.ERR,"upstream: ",u,"in ex: ",ok)
     if ok then
         ngx.log(ngx.ERR,"checker status change",u)
         local ok, err = dict:set(u, 0)

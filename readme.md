@@ -459,7 +459,7 @@ Upstream foo
             {
               "current_weight": 0,
               "id": 0,
-              "name": "192.168.1.180:93",
+              "name": "ip:93",
               "conns": 0,
               "down": true,
               "weight": 1,
@@ -469,13 +469,13 @@ Upstream foo
               "max_fails": 1
             }
           ],
-          "name": "lintest",
+          "name": "upstream_name",
           "checked": true,
           "primary": [
             {
               "current_weight": 0,
               "id": 0,
-              "name": "192.168.1.180:91",
+              "name": "ip:91",
               "conns": 0,
               "down": true,
               "weight": 1,
@@ -487,7 +487,7 @@ Upstream foo
             {
               "current_weight": 0,
               "id": 1,
-              "name": "192.168.1.180:92",
+              "name": "ip:92",
               "conns": 0,
               "down": true,
               "weight": 1,

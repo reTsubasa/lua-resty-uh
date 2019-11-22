@@ -1077,6 +1077,7 @@ local function valid(req)
             return nil, "Request args error"
         end
     end
+    return true
 end
 
 local function api_ex_list(req)

@@ -646,9 +646,9 @@ local function update_upstream_checker_status(ctx, success)
     else
         cnt = cnt - 1
     end
-    local ok, err = dict:incr(u,1)
+    local ok, err = dict:set(u,cnt)
     if not ok then
-        errlog("update checker failed", err)
+        errlog("update checker status failed: ", err)
     end
     -- upstream_checker_statuses[upstream] = cnt
 end

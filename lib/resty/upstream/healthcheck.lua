@@ -1142,14 +1142,16 @@ local function api_gray_peer(req)
     if type(peer) ~= "string" then
         return render_json("err", nil, "Arg 'p' type error")
     end
-    if type(tonumber(ttl)) ~= "number" or ttl == 0 then
-        return render_json("err", nil, "Arg 'ttl' error")
-    end
+
     if type(act) ~= "string" then
         return render_json("err", nil, "Arg 'a' type error")
     end
 
     if act == "set" then
+        if type(tonumber(ttl)) ~= "number" or ttl == 0 then
+            return render_json("err", nil, "Arg 'ttl' error")
+        end
+        
         local ok, err = set_gray_peer(name, peer, ttl)
         if not ok then
             return render_json("err", nil, err)

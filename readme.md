@@ -576,13 +576,13 @@ http://host/endpoint?t=ex&u=upstream_name&a=set&ttl=30
 **del**
 
 ```http
-http://host/endpoint?t=ex&u=upstream_name&a=get
+http://host/endpoint?t=ex&u=upstream_name&a=del
 ```
 
 **get**
 
 ```http
-http://host/endpoint?t=ex&u=upstream_name&a=del
+http://host/endpoint?t=ex&u=upstream_name&a=get
 ```
 
 
@@ -609,6 +609,24 @@ http://host/endpoint?t=ex&u=upstream_name&a=del
 
 
 **example**:
+
+**set**
+
+```http
+http://host/endpoint?t=gray&u=upstream_name&a=set&p=peer_ip:peer_port&ttl=60
+```
+
+**del**
+
+```http
+http://host/endpoint?t=ex&u=upstream_name&a=get
+```
+
+**get**
+
+```http
+http://host/endpoint?t=ex&u=upstream_name&a=del
+```
 
 
 

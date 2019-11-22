@@ -621,30 +621,10 @@ local function update_upstream_checker_status(ctx, success)
     local dict = ctx.dict
     local u = ctx.upstream
 
-    -- -- check if in ex_list
-    -- local ok, err = in_ex_lists(u)
-    -- if err then
-    --     errlog(err)
-    -- end
-    -- ngx.log(ngx.ERR,"upstream: ",u,"in ex: ",ok)
-    -- if ok then
-    --     ngx.log(ngx.ERR,"checker status change",u)
-    --     local ok, err = dict:set(u, 0)
-    --     if not ok then
-    --         errlog("update checker failed", err)
-    --     end
-    --     return
-    -- end
-
-    local cnt = dict:get(u)
-    if not cnt then
+    if not success then
         cnt = 0
-    end
-
-    if success then
-        cnt = cnt + 1
     else
-        cnt = cnt - 1
+        cnt = 1
     end
     local ok, err = dict:set(u,cnt)
     if not ok then

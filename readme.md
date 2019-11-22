@@ -562,6 +562,26 @@ Upstream foo
 
 **example**：
 
+**set**
+
+```http
+http://host/endpoint?t=ex&u=upstream_name&a=set
+```
+
+**del**
+
+```
+http://host/endpoint?t=ex&u=upstream_name&a=get
+```
+
+**get**
+
+```
+http://host/endpoint?t=ex&u=upstream_name&a=del
+```
+
+
+
 
 
 ## peer_manual_down

@@ -82,7 +82,7 @@ local function gen_ex_key(name)
 end
 
 -- func set the exclude_list record into shm
- 
+
 local function setin_ex_lists(name, ttl)
     if not name or type(name) ~= "string" then
         errlog("upstream name must be given")
@@ -108,13 +108,13 @@ end
 -- while the first return as "nil",it has mean then record not in the shm
 -- so if want to check the fucntion worked,should check the second return first
 -- ex:
-        -- local ok,err = in_ex_list(name)
-        -- if err then
-        --     -- log something 
-        -- end
-        -- if ok then
-        --     -- got the record
-        -- end
+-- local ok,err = in_ex_list(name)
+-- if err then
+--     -- log something
+-- end
+-- if ok then
+--     -- got the record
+-- end
 
 local function in_ex_lists(name)
     if not name or type(name) ~= "string" then
@@ -123,7 +123,7 @@ local function in_ex_lists(name)
     end
     local key = gen_ex_key(name)
     if not key then
-        errlog"gen exclude_list key error"
+        errlog "gen exclude_list key error"
         return nil, "gen exclude_list key error"
     end
     local res, err = shm_hc:get(key)
@@ -333,12 +333,14 @@ local function set_gray_peer(upstream, peer_name, ttl)
     if type(upstream) ~= "string" or type(peer_name) ~= "string" then
         return nil, "upstream name and peer_name type mustbe string"
     end
-    if type(tonumber(ttl)) ~= "number" then
+    ttl = tonumber(ttl)
+    if type(ttl) ~= "number" then
         return nil, "ttl mustbe a number"
     end
 
     local gray_key_value = "grayed"
     local gray_key = "gray:" .. upstream .. peer_name
+    ngx.log(ngx.ERR,upstream,":",peer_name,":",ttl)
     local ok, err = shm_hc:set(gray_key, gray_key_value, ttl)
     if not ok then
         local msg = "set gray key into shm failed" .. (err or "")
@@ -626,7 +628,7 @@ local function update_upstream_checker_status(ctx, success)
     else
         cnt = 1
     end
-    local ok, err = dict:set(u,cnt)
+    local ok, err = dict:set(u, cnt)
     if not ok then
         errlog("update checker status failed: ", err)
     end
@@ -651,9 +653,9 @@ check = function(premature, ctx)
         if not ok then
             errlog("failed to run healthcheck cycle: ", err)
         end
-        update_upstream_checker_status(ctx,true)
+        update_upstream_checker_status(ctx, true)
     else
-        update_upstream_checker_status(ctx,false)
+        update_upstream_checker_status(ctx, false)
     end
 
     local ok, err = new_timer(ctx.interval, check, ctx)
@@ -1113,7 +1115,7 @@ local function api_ex_list(req)
             return render_json("err", nil, err)
         end
         if not ok then
-           return render_json("ok", "not found", nil) 
+            return render_json("ok", "not found", nil)
         end
         return render_json("ok", "found", nil)
     end
@@ -1123,11 +1125,6 @@ local function api_ex_list(req)
         if not ok then
             return render_json("err", nil, err)
         end
-        -- -- update the checker
-        -- local tb = {}
-        -- tb.dict = shm_hc
-        -- tb.upstream = name
-        -- update_upstream_checker_status(tb,true)
         return render_json("ok", "Delete succeded", nil)
     end
 end
@@ -1161,7 +1158,7 @@ local function api_gray_peer(req)
     end
 
     if act == "get" then
-        local gray_key = "gray:".. name .. peer
+        local gray_key = "gray:" .. name .. peer
         local val = shm_hc:get(gray_key)
         if val then
             return render_json("ok", "found", nil)
@@ -1170,7 +1167,7 @@ local function api_gray_peer(req)
     end
 
     if act == "del" then
-        local gray_key = "gray:".. name .. peer
+        local gray_key = "gray:" .. name .. peer
         shm_hc:delete(gray_key)
         return render_json("ok", "Delete succeded", nil)
     end
@@ -1189,7 +1186,7 @@ end
 local router = {
     ex = api_ex_list,
     gray = api_gray_peer,
-    debug = api_debug,
+    debug = api_debug
 }
 
 -- api main endpoint
@@ -1206,7 +1203,7 @@ function _M.status()
     -- end
 
     local uri_args = req.uri_args
-    if type (uri_args)  ~= "table" then
+    if type(uri_args) ~= "table" then
         return render_json("err", nil, err)
     end
 

@@ -547,7 +547,12 @@ Upstream foo
 
 操作不检查清单的的upstream(checker)。
 
-**注意**：非通过`opts`参数添加的upstream，因记录保存在缓存中，在Nginx master进程crash后，记录会消失，普通的HUP(`nginx -s reload`)则不受影响。
+**注意**：
+
+- 非通过`opts`参数添加的upstream，因记录保存在缓存中，在Nginx master进程crash后，记录会消失，普通的HUP(`nginx -s reload`)则不受影响。
+- 注意通过接口提交的记录会立即被接受，但是只会在下一轮health_checker定时器启动时生效执行，如果你的`interval`值设置的非常大，那么结果可能不会如预期一样执行。
+
+
 
 **method**：GET
 
@@ -565,18 +570,18 @@ Upstream foo
 **set**
 
 ```http
-http://host/endpoint?t=ex&u=upstream_name&a=set
+http://host/endpoint?t=ex&u=upstream_name&a=set&ttl=30
 ```
 
 **del**
 
-```
+```http
 http://host/endpoint?t=ex&u=upstream_name&a=get
 ```
 
 **get**
 
-```
+```http
 http://host/endpoint?t=ex&u=upstream_name&a=del
 ```
 

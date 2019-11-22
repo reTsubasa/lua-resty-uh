@@ -1175,13 +1175,24 @@ local function api_gray_peer(req)
     if act == "del" then
         local gray_key = "gray:".. name .. peer
         shm_hc:delete(gray_key)
-        render_json("ok", "Delete succeded", nil)
+        return render_json("ok", "Delete succeded", nil)
     end
+end
+
+local function api_debug()
+    local keys = shm_hc:get_keys(0)
+    local tb = {}
+    for i, key in ipairs(keys) do
+        local val = shm_hc:get(key)
+        tb[key] = val or "false"
+    end
+    return render_json("ok", tb, nil)
 end
 
 local router = {
     ex = api_ex_list,
     gray = api_gray_peer,
+    debug = api_degub,
 }
 
 -- api main endpoint

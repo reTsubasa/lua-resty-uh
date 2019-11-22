@@ -1179,7 +1179,7 @@ local function api_gray_peer(req)
     end
 end
 
-local function api_debug()
+local function api_debug(req)
     local keys = shm_hc:get_keys(0)
     local tb = {}
     for i, key in ipairs(keys) do
@@ -1203,12 +1203,15 @@ function _M.status()
     collect_args(req)
 
     -- request args valid
-    local ok, err = valid(req)
-    if not ok then
-        return render_json("err", nil, err)
-    end
+    -- local ok, err = valid(req)
+    -- if not ok then
+    --     return render_json("err", nil, err)
+    -- end
 
     local uri_args = req.uri_args
+    if type (uri_args)  ~= "table" then
+        return render_json("err", nil, err)
+    end
 
     if uri_args.t then
         if router[uri_args.t] then

@@ -340,7 +340,6 @@ local function set_gray_peer(upstream, peer_name, ttl)
 
     local gray_key_value = "grayed"
     local gray_key = "gray:" .. upstream .. peer_name
-    ngx.log(ngx.ERR,upstream,":",peer_name,":",ttl)
     local ok, err = shm_hc:set(gray_key, gray_key_value, ttl)
     if not ok then
         local msg = "set gray key into shm failed" .. (err or "")
@@ -1151,7 +1150,7 @@ local function api_gray_peer(req)
         if type(tonumber(ttl)) ~= "number" or ttl == 0 then
             return render_json("err", nil, "Arg 'ttl' error")
         end
-        
+
         local ok, err = set_gray_peer(name, peer, ttl)
         if not ok then
             return render_json("err", nil, err)

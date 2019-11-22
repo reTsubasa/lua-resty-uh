@@ -1128,12 +1128,11 @@ local function api_ex_list(req)
 
     if act == "get" then
         local ok, err = in_ex_lists(name)
-        ngx.log(ngx.ERR,ok,err,name)
         if err then
             return render_json("err", nil, err)
         end
         if not ok then
-           render_json("ok", "not found", nil) 
+           return render_json("ok", "not found", nil) 
         end
         return render_json("ok", "found", nil)
     end

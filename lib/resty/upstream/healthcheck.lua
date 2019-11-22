@@ -1192,7 +1192,7 @@ end
 local router = {
     ex = api_ex_list,
     gray = api_gray_peer,
-    debug = api_degub,
+    debug = api_debug,
 }
 
 -- api main endpoint

@@ -8,6 +8,8 @@
 
 - `luarocks install penlight`
 
+  已通过`luarocks`安装了`lua-resty-uh`的，可以忽略
+
 - `resty-cli` 如果使用openresty源码安装，默认会在`/usr/local/openresty/bin`路径下。如果使用官方的二进制包安装，则可通过安装名为`openresty-resty`的包
 
 ## 安装
@@ -15,6 +17,14 @@
 下载`http_test.lua`到任意路径下即可。
 
 ## 使用
+
+**注意**
+
+**必须使用`resty`执行！！！**
+
+**必须使用`resty`执行！！！**
+
+**必须使用`resty`执行！！！**
 
 ```shell
 bash: resty http_test.lua -t 192.168.1.1:2222
@@ -96,4 +106,4 @@ Host: foo.com
 
 ## Todo
 
-- 由于原函数中网络部分函数和部分逻辑有耦合，导致测试工具无法直接调用库函数仿真
+- 由于原函数中网络部分函数和部分逻辑有耦合，测试工具无法直接调用库函数仿真

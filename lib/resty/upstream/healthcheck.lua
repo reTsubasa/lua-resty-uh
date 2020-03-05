@@ -21,7 +21,7 @@ local wait = ngx.thread.wait
 local pcall = pcall
 
 local _M = {
-    _VERSION = "0.0.5"
+    _VERSION = "0.0.6"
 }
 
 if not ngx.config or not ngx.config.ngx_lua_version or ngx.config.ngx_lua_version < 9005 then

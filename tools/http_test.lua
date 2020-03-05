@@ -228,6 +228,9 @@ local function http_req(opts)
     end
 end
 
+
+
+
 local str =
     [[
 
@@ -236,11 +239,26 @@ Upstream Health Test tool                      v:%s
 
   必须使用 resty-cli (Openresty-Resty) 执行本工具
 
-  -t (string)  需要测试的目标.如果有端口使用"HOST:PORT"形式
-  -o (number default 2000) sockect超时时间,单位:ms,默认值：2000
-  -v (boolean default true ) verbose mode
-  -n (string default foo.com) http请求中的HOST名称
-  -l (string default /) http请求中的接口名称
+  Usage: resty uh_tool.lua -c [命令] (参数)
+
+命令：
+  -c (string default node) 需要执行的命令
+
+    node: 节点健康度检查
+            -t (optional string)  需要测试的目标.如果有端口使用"HOST:PORT"形式
+            -o (number default 2000) sockect超时时间,单位:ms,默认值：2000
+            -v (boolean default true ) verbose mode
+            -n (string default foo.com) http请求中的HOST名称
+            -l (string default /) http请求中的接口名称
+    
+    shm: 缓存记录操作(通过API实现)
+            -t (optional string) 请求的API名称
+            -u (optional string) Upstream名称 (特殊字符通过BASH输入需要转义)
+            -a (optional string) 请求的操作
+            -p (optional string) Upstream中对应的节点
+            -ttl (number default 0) 失效时间
+
+  
 
   ex:
   1. bash$ resty http_test -t 192.168.1.1:2222
@@ -248,7 +266,7 @@ Upstream Health Test tool                      v:%s
   3. bash$ resty http_test -t 192.168.1.1:2222 -l test -n domain.com
 
 
-  ]]
+]]
 
 local help = fmt(str,version)
 
@@ -256,23 +274,63 @@ local args = lapp(help)
 
 local opts = {}
 
-if not args.t then
+if not args.c then
     lapp(help)
     lapp.quit()
     return
 end
 
-opts["name"] = args.t
-opts["timeout"] = args.o
+-- cmd:node
+if args.c == "node" then
+    if not args.t then
+        local msg = "ERROR: 参数 -t：需要测试的目标缺失\n"
+        lapp(msg..help)
+        lapp.quit()
+    end
+    opts["name"] = args.t
+    opts["timeout"] = args.o
 
-local host = args.n
+    local host = args.n
 
-local location = args.l
-if sub(location, 1, 2) ~= "/" then
-    location = "/" .. location
+    local location = args.l
+    if sub(location, 1, 2) ~= "/" then
+        location = "/" .. location
+    end
+    opts["req"] = fmt("GET %s HTTP/1.1\r\nHost: %s\r\n\r\n", location, host)
+
+    opts["verbose"] = args.v or false
+
+    return http_req(opts)
 end
-opts["req"] = fmt("GET %s HTTP/1.1\r\nHost: %s\r\n\r\n", location, host)
 
-opts["verbose"] = args.v or false
 
-http_req(opts)
+-- cmd:shm
+if args.c == "shm" then
+    if not args.t then
+        local msg = "ERROR: 参数 -t：API名称缺失\n"
+        lapp(msg..help)
+        lapp.quit()
+    end
+
+    
+    if args.t == "ex" then
+        -- API: https://github.com/reTsubasa/lua-resty-uh#exclude_lists
+        if not args.u then
+            local msg = "ERROR: 参数 -u upstream名称缺失\n"
+            lapp(msg..help)
+            lapp.quit()
+        end
+        if (not args.a) or args.a ~= ("set" or "del" or "get") then
+            local msg = "ERROR: 参数 -a 请求的操作缺失或不存在\n"
+            lapp(msg..help)
+            lapp.quit()
+        end
+        local opts = {}
+        opts.t = args.t
+        opts.u = args.u
+        opts.a = args.a
+        opts.ttl = args.ttl
+
+        local res,err = 
+    end
+end

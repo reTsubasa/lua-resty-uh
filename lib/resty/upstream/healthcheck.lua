@@ -260,7 +260,7 @@ local function peer_fail(ctx, is_backup, id, peer, gray)
     -- ", fails: ", fails)
 
     if not peer.down and fails >= ctx.fall then
-        warn("peer ", peer.name, " is turned down after ", fails, " failure(s)")
+        errlog("peer ", peer.name, " is turned down after ", fails, " failure(s)")
         peer.down = true
         set_peer_down_globally(ctx, is_backup, id, true)
     end
@@ -312,7 +312,7 @@ local function peer_ok(ctx, is_backup, id, peer)
     end
 
     if peer.down and succ >= ctx.rise then
-        warn("peer ", peer.name, " is turned up after ", succ, " success(es)")
+        errlog("peer ", peer.name, " is turned up after ", succ, " success(es)")
         peer.down = nil
         set_peer_down_globally(ctx, is_backup, id, nil)
     end

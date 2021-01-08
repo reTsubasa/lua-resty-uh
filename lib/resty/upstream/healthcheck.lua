@@ -1218,5 +1218,31 @@ function _M.status()
         return all_status()
     end
 end
-
+local rules_strcut = {
+    upstream_name = {
+        name = "",
+        need_update = false,
+        timer = {
+            interval="",
+            enabled = true,
+        }
+        checker = {
+            type = "",
+            request_uri = "",
+            method = "",
+            timeout = "",
+            concrrency = "",
+        },
+        actor = {
+            fall="",
+            rise = "",
+        },
+        peers = {
+            primary={},
+            backup = {},
+            manual = {},
+        },
+    }
+}
 return _M
+

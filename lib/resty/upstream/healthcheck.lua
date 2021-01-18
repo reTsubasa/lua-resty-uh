@@ -29,6 +29,17 @@ local _M = {
     _VERSION = "0.1.0"
 }
 
+-- do OR version check
+if not ngx.config or not ngx.config.ngx_lua_version or ngx.config.ngx_lua_version < 9005 then
+    return nil, "ngx_lua 0.9.5+ required"
+end
+
+-- do ngx.upstream module check
+local ok, upstream = pcall(require, "ngx.upstream")
+if not ok then
+    return nil, "ngx_upstream_lua module required"
+end
+
 local set_peer_down = upstream.set_peer_down
 local get_primary_peers = upstream.get_primary_peers
 local get_backup_peers = upstream.get_backup_peers
@@ -88,7 +99,7 @@ local function read(position)
         file:close()
         return text
     end
-    return nil, fmt("Read file failed. path: %s", position)
+    return nil, "file not exist"
 end
 
 -- read json file,by given path,return a table on succ
@@ -111,9 +122,7 @@ local pkg_dfs = {
     -- the default share dict for this package used
     dict = "healthcheck", -- required
     -- the path where config file stored
-    path = "/etc/healthcheck/configs",
-    -- default config file name
-    default_config_name = "default.json",
+    rules_file = "/etc/healthcheck/rules.json",
     -- set default run mode "full"
     -- all run mode canbe "full","debug","bypass"
     mode = "full",
@@ -126,117 +135,67 @@ local pkg_dfs = {
     rise = 2,
     statuses = {200, 301, 302},
     concurrency = 1,
-    enabled = false,
+}
+
+-- a key:{value_type,check_type,arg1,arg2,} nest-table for valid init settings
+-- value_type : string,number,boolean,table,etc
+-- check_type : 
+        -- option:{choice1,choice2,...}
+        -- len:(min,max)
+
+local config_valid_def = {
+    dict = {"string","len",1,20},
+    rules_file = {"string","len",1,100},
+    mode = {"string","option",{"full","debug","bypass"}},
+    type = {"string","option",{"http","tcp"}},
+    timeout = {"number","len",1,1000*10},
+    interval = {"number","len",1,1000*60*60},
+    fall = {"number","len",0,100},
+    rise = {"number","len",0,100},
+    statuses = {"table","regex",[[^\d\d\d$]]},
+    concurrency = {"number","len",0,100},  
+
 }
 
 -- @table rule the rule table hold all the init settings
 -- @return table rule if valid else return nil with error message
-local function config_valid(rule)
-    for key, value in pairs(rule) do
-        if key == "dict" then
-            local shm_hc = ngx.shared[value]
-            if not shm_hc then
-                return nil, fmt("shared dict: '%s' error")
-            end
-            value = shm_hc
+local function config_valid(rules)
+    if type(rules) ~= "table" then
+        return nil,"valid rules failed"
+    end
+    for k, v in pairs(rules) do
+        defs = config_valid_def[k]
+        if not defs then
+            -- the key not_pre_defined
+            v = "not_pre_defined"
         end
-
-        if key == "mode" then
-            if type(value) ~= "string" then
-                return nil, "run mode set error"
-            end
-            if value ~= "full" or value ~= "debug" or value ~= "bypass" then
-                return nil, "run mode sett error,should be 'full' or 'debug',or 'bypass'"
-            end
+        if type(v) ~= defs[1] then
+            return nil,fmt("rules key:%s format error.expected:%s",k,defs[1])
         end
-
-        if key == "type" then
-            if type(value) ~= "string" then
-                return nil, "type set error"
-            end
-            if type ~= "http" then
-                return nil, "check type error"
+        if defs[2] == "len" then
+            if len(v)<def[3] or len(v)>def[4] then
+                return nil,fmt("rules key:%s length error,expected at %s-%s",k,defs[3],defs[4])
             end
         end
-
-        if key == "http_req" then
-            if type(value) ~= "string" then
-                return nil, "http_req set error"
-            end
-        end
-
-        if key == "timeout" then
-            if type(value) ~= "number" then
-                return nil, "timeout set error"
-            end
-            if value <= 0 then
-                return nil, "timeout should be positive integer"
-            end
-        end
-
-        if key == "interval" then
-            if type(value) ~= "number" then
-                return nil, "interval set error"
-            end
-            if value <= 0 then
-                return nil, "interval should be positive integer"
-            end
-        end
-
-        if key == "fall" then
-            if type(value) ~= "number" then
-                return nil, "fall set error"
-            end
-
-            if value <= 0 then
-                return nil, "fall should be positive integer"
-            end
-        end
-
-        if key == "rise" then
-            if type(value) ~= "number" then
-                return nil, "rise set error"
-            end
-            if value <= 0 then
-                return nil, "rise should be positive integer"
-            end
-        end
-
-        if key == "concurrency" then
-            if type(value) ~= "number" then
-                return nil, "concurrency set error"
-            end
-
-            if value <= 0 then
-                return nil, "concurrency should be positive integer"
-            end
-        end
-
-        if key == "statuses" then
-            if type(value) ~= "table" then
-                return nil, "statuses set error"
-            end
-
-            for i, status in ipairs(value) do
-                if not find(status, "^%d%d%d$") then
-                    return nil, fmt("status set error.pos:%s,value:%s", i, status)
+        if defs[2] == "option" then
+            local flag
+            for _, opt in ipairs(defs[3]) do
+                if opt == v then
+                    flag = true
                 end
             end
-            statuses = new_tab(0, #value)
-            for _, status in ipairs(value) do
-                -- print("found good status ", status)
-                statuses[status] = true
-            end
-            rule.statuses = statuses
-        end
-
-        if key == "enabled" then
-            if type(value) ~= "boolean" then
-                return nil,"enabled set error"
+            if not flag then
+                return nil,fmt("rule key:%s value error,expected %s",k,concat(defs[3]))
             end
         end
-        return rule
+        if defs[2] == "regex" then
+            local h = re_find(v,defs[3],"imjo")
+            if not h then
+                return nil,fmt("rule key:%s not as expected.",k)
+            end
+        end
     end
+    return rules
 end
 
 
@@ -265,55 +224,45 @@ local function load_config(path, name)
     return config_valid(rule)
 end
 
--- do the basic running env requirement checks
-local function init_env_args(opts, ctx)
-    -- do OR version check
-    if not ngx.config or not ngx.config.ngx_lua_version or ngx.config.ngx_lua_version < 9005 then
-        return nil, "ngx_lua 0.9.5+ required"
-    end
+-- -- do the basic running env requirement checks
+-- local function init_env_args(opts, ctx)
 
-    -- do ngx.upstream module check
-    local ok, upstream = pcall(require, "ngx.upstream")
-    if not ok then
-        return nil, "ngx_upstream_lua module required"
-    end
+--     -- do check config path,
+--     -- if not exist dump the default config to the config.json file
+--     -- else load the local config,and set it into ctx
+--     if opts.path then
+--         local path = opts.path
+--         local ok = pl_path.isdir(path)
+--         if not ok then
+--             ok = pl_path.isabs(pl_path.normpath(path))
+--             if not ok then
+--                 return nil, "config path arg error,please recheck"
+--             else
+--                 -- create the path
+--                 ok = pl_path.mkdir(path)
+--                 if not ok then
+--                     return nil, fmt("create directory failed,path：%s", path)
+--                 end
+--             end
+--         end
+--         ctx.path = path
+--     end
 
-    -- do check config path,
-    -- if not exist dump the default config to the config.json file
-    -- else load the local config,and set it into ctx
-    if opts.path then
-        local path = opts.path
-        local ok = pl_path.isdir(path)
-        if not ok then
-            ok = pl_path.isabs(pl_path.normpath(path))
-            if not ok then
-                return nil, "config path arg error,please recheck"
-            else
-                -- create the path
-                ok = pl_path.mkdir(path)
-                if not ok then
-                    return nil, fmt("create directory failed,path：%s", path)
-                end
-            end
-        end
-        ctx.path = path
-    end
+--     ctx.path = pkg_dfs.path
 
-    ctx.path = pkg_dfs.path
+--     -- do load config
 
-    -- do load config
+--     local def_conf, err = load_config(ctx.path, pkg_dfs.default_config_name)
+--     if err then
+--         return nil, err
+--     end
 
-    local def_conf, err = load_config(ctx.path, pkg_dfs.default_config_name)
-    if err then
-        return nil, err
-    end
+--     ctx.def_conf = def_conf
 
-    ctx.def_conf = def_conf
+--     -- finnally
 
-    -- finnally
-
-    return true
-end
+--     return true
+-- end
 
 local function preprocess_peers(peers)
     local n = #peers
@@ -847,6 +796,33 @@ local function spawn_checkers(ctx)
     end
 end
 
+
+-- a loader load the init configs
+-- as the config source,json format file and http request endpoint(API) is supported.
+-- type:file will be the default source.and the default file will located at /etc/healthcheck/rules.json
+-- if not type specifed and default file is not existed,a new file will be created with default settings
+-- if type is "api",the loader will load the config json file first,and send the http request for fetch the new rules
+local function loader(ctx)
+    debug("start loader...")
+    local path = pkg_dfs.rules_file
+    local ok = pl_path.exists(path)
+    if not ok then
+        debug("rule file not exist,create it")
+        local ok, err = pl_file.write(path, pkg_dfs)
+        if not ok then
+            return nil, err
+        end
+    end
+    local rule, err = read_json(filepath)
+    if err then
+        return nil, err
+    end
+    debug("load rules.work for valid")
+    return config_valid(rule)
+
+end
+
+
 -- Upstream health checker start point
 -- The checker's default behavior can be change by the given ops tables
 -- This options should be carefully setted.Due the this setting will only be
@@ -855,11 +831,13 @@ end
 function _M.run(opts)
     local ctx = new_tab(10, 10)
 
-    -- do the init checker's options
-    local ok, err = init_env_args(opts, ctx)
-    if err then
+    local ok,err = loader(ctx)
+    if not ok then
+        errlog("init upstream health checker failed.",err)
         error(err)
     end
+
+    debug("load rules ok")
 
     -- load running-time vars like upstreams,peers,upstream's rule
     spawn_checkers(ctx)

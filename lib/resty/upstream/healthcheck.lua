@@ -47,6 +47,13 @@ if not m_shm then
     return nil,'set lua_shared_dict = "healthcheck" in "nginx.conf" is required'
 end
 
+local ok, new_tab = pcall(require, "table.new")
+if not ok or type(new_tab) ~= "function" then
+    new_tab = function(narr, nrec)
+        return {}
+    end
+end
+
 local set_peer_down = upstream.set_peer_down
 local get_primary_peers = upstream.get_primary_peers
 local get_backup_peers = upstream.get_backup_peers
@@ -739,7 +746,7 @@ local function spawn_checkers(ctx)
 
         local ok,err = load_upstream_config(ctx)
         if not ok then
-            retrun nil,err
+            return nil,err
         end
         if ctx.mode == "debug" then
             check(nil, ctx)
@@ -766,7 +773,7 @@ end
 
 local function collect_checker(ctx,upstream)
     local checker_rule = ctx[upstream] or ctx.default
-    checker_rule.u = upstream
+    checker_rule.upstream = upstream
     -- peers info
     checker_rule.primary_peers = preprocess_peers(ppeers)
     checker_rule.backup_peers = preprocess_peers(bpeers)
@@ -827,14 +834,16 @@ end
 -- set at the time of checkers created.If options had been modified,the Nginx
 -- need do a HUP reload or service Stop/Start to get this changed effected.
 function _M.run(opts)
+    errlog(worker_id())
     if worker_id() ~= 0 then
         return
     end
+
     local ctx = new_tab(10, 10)
 
     local ok,err = loader(ctx)
     if not ok then
-        errlog("init upstream health checker failed.",err)
+        errlog("init upstream health checker failed:",err)
         error(err)
     end
 
@@ -843,23 +852,24 @@ function _M.run(opts)
     -- load running-time vars like upstreams,peers,upstream's rule
     collect_checkers(ctx)
 
+    errlog(cjson.encode(upstream_rules))
     -- spawn checkers
     spawn_checkers()
 end
 
-local ctx = {
-    upstream = u,
-    primary_peers = preprocess_peers(ppeers),
-    backup_peers = preprocess_peers(bpeers),
-    http_req = http_req,
-    timeout = timeout,
-    interval = interval,
-    dict = shm_hc,
-    fall = fall,
-    rise = rise,
-    statuses = statuses,
-    version = 0,
-    concurrency = concur
-}
+-- local ctx = {
+--     upstream = u,
+--     primary_peers = preprocess_peers(ppeers),
+--     backup_peers = preprocess_peers(bpeers),
+--     http_req = http_req,
+--     timeout = timeout,
+--     interval = interval,
+--     dict = shm_hc,
+--     fall = fall,
+--     rise = rise,
+--     statuses = statuses,
+--     version = 0,
+--     concurrency = concur
+-- }
 
 return _M

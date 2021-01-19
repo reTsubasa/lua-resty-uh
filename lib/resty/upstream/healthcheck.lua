@@ -24,6 +24,7 @@ local ceil = math.ceil
 local spawn = ngx.thread.spawn
 local wait = ngx.thread.wait
 local pcall = pcall
+local worker_id = ngx.worker.id
 
 local _M = {
     _VERSION = "0.1.0"
@@ -38,6 +39,12 @@ end
 local ok, upstream = pcall(require, "ngx.upstream")
 if not ok then
     return nil, "ngx_upstream_lua module required"
+end
+
+-- do shared dict check
+local m_shm = ngx.shared.healthcheck
+if not m_shm then
+    return nil,'set lua_shared_dict = "healthcheck" in "nginx.conf" is required'
 end
 
 local set_peer_down = upstream.set_peer_down
@@ -59,6 +66,9 @@ local function debug(...)
         log(DEBUG, "healthcheck: ", ...)
     end
 end
+
+local upstream_rules = {}
+local upstream_checker_statuses ={}
 
 -- Tool functions
 
@@ -117,6 +127,8 @@ local function read_json(p)
     return r
 end
 
+-- Module default settings
+
 -- module layer default settings
 local pkg_dfs = {
     -- the default share dict for this package used
@@ -153,9 +165,12 @@ local config_valid_def = {
     fall = {"number","len",0,100},
     rise = {"number","len",0,100},
     statuses = {"table","regex",[[^\d\d\d$]]},
-    concurrency = {"number","len",0,100},  
+    concurrency = {"number","len",0,100},
+    enable = {"boolean"}
 
 }
+
+
 
 -- @table rule the rule table hold all the init settings
 -- @return table rule if valid else return nil with error message
@@ -168,32 +183,36 @@ local function config_valid(rules)
         if not defs then
             -- the key not_pre_defined
             v = "not_pre_defined"
-        end
-        if type(v) ~= defs[1] then
-            return nil,fmt("rules key:%s format error.expected:%s",k,defs[1])
-        end
-        if defs[2] == "len" then
-            if len(v)<def[3] or len(v)>def[4] then
-                return nil,fmt("rules key:%s length error,expected at %s-%s",k,defs[3],defs[4])
+        else
+            if type(v) ~= defs[1] then
+                return nil,fmt("rules key:%s format error.expected:%s",k,defs[1])
             end
-        end
-        if defs[2] == "option" then
-            local flag
-            for _, opt in ipairs(defs[3]) do
-                if opt == v then
-                    flag = true
+            if defs[2] then
+                if defs[2] == "len" then
+                    if len(v)<def[3] or len(v)>def[4] then
+                        return nil,fmt("rules key:%s length error,expected at %s-%s",k,defs[3],defs[4])
+                    end
+                end
+                if defs[2] == "option" then
+                    local flag
+                    for _, opt in ipairs(defs[3]) do
+                        if opt == v then
+                            flag = true
+                        end
+                    end
+                    if not flag then
+                        return nil,fmt("rule key:%s value error,expected %s",k,concat(defs[3]))
+                    end
+                end
+                if defs[2] == "regex" then
+                    local h = re_find(v,defs[3],"imjo")
+                    if not h then
+                        return nil,fmt("rule key:%s not as expected.",k)
+                    end
                 end
             end
-            if not flag then
-                return nil,fmt("rule key:%s value error,expected %s",k,concat(defs[3]))
-            end
         end
-        if defs[2] == "regex" then
-            local h = re_find(v,defs[3],"imjo")
-            if not h then
-                return nil,fmt("rule key:%s not as expected.",k)
-            end
-        end
+        
     end
     return rules
 end
@@ -224,45 +243,6 @@ local function load_config(path, name)
     return config_valid(rule)
 end
 
--- -- do the basic running env requirement checks
--- local function init_env_args(opts, ctx)
-
---     -- do check config path,
---     -- if not exist dump the default config to the config.json file
---     -- else load the local config,and set it into ctx
---     if opts.path then
---         local path = opts.path
---         local ok = pl_path.isdir(path)
---         if not ok then
---             ok = pl_path.isabs(pl_path.normpath(path))
---             if not ok then
---                 return nil, "config path arg error,please recheck"
---             else
---                 -- create the path
---                 ok = pl_path.mkdir(path)
---                 if not ok then
---                     return nil, fmt("create directory failed,path：%s", path)
---                 end
---             end
---         end
---         ctx.path = path
---     end
-
---     ctx.path = pkg_dfs.path
-
---     -- do load config
-
---     local def_conf, err = load_config(ctx.path, pkg_dfs.default_config_name)
---     if err then
---         return nil, err
---     end
-
---     ctx.def_conf = def_conf
-
---     -- finnally
-
---     return true
--- end
 
 local function preprocess_peers(peers)
     local n = #peers
@@ -637,7 +617,7 @@ local function upgrade_peers_version(ctx, peers, is_backup)
 end
 
 local function check_peers_updates(ctx)
-    local dict = ctx.dict
+    local dict = m_shm
     local u = ctx.upstream
     local key = "v:" .. u
     local ver, err = dict:get(key)
@@ -709,50 +689,30 @@ end
 
 
 local function update_upstream_checker_status(ctx, success)
-    local dict = ctx.dict
     local u = ctx.upstream
 
-    if not success then
+    local cnt = upstream_checker_statuses[u]
+    if not cnt then
         cnt = 0
+    end
+
+    if success then
+        cnt = cnt + 1
     else
-        cnt = 1
+        cnt = cnt - 1
     end
-    local ok, err = dict:set(u, cnt)
-    if not ok then
-        errlog("update checker status failed: ", err)
-    end
+
+    upstream_checker_statuses[u] = cnt
 end
 
 
-local check
-check = function(premature, ctx)
-    if premature then
-        return
+local function check(premature,ctx)
+    if ctx.enable then
+        local ok, err = pcall(do_check, ctx)
+        if not ok then
+            errlog("failed to run healthcheck cycle: ", err)
+        end
     end
-
-    -- check the upstream name in ex_lists or not
-    local name = ctx.upstream
-    -- local val, err = in_ex_lists(name)
-
-    -- if err then
-    --     errlog(err)
-    -- end
-
-    -- if not val then
-    --     local ok, err = pcall(do_check, ctx)
-    --     if not ok then
-    --         errlog("failed to run healthcheck cycle: ", err)
-    --     end
-    --     update_upstream_checker_status(ctx, true)
-    -- else
-    --     update_upstream_checker_status(ctx, false)
-    -- end
-
-    local ok, err = pcall(do_check, ctx)
-    if not ok then
-        errlog("failed to run healthcheck cycle: ", err)
-    end
-
     local ok, err = new_timer(ctx.interval, check, ctx)
     if not ok then
         if err ~= "process exiting" then
@@ -763,7 +723,6 @@ check = function(premature, ctx)
         return
     end
 end
-
 
 -- create the checkers by give options of each upstreams
 local function spawn_checkers(ctx)
@@ -794,7 +753,40 @@ local function spawn_checkers(ctx)
         return true
             
     end
+
+    for name, rule in pairs(upstream_rules) do
+        if name ~= "default" then
+            local ok, err = new_timer(0, check, rule)
+            if not ok then
+                return nil, "failed to create timer: " .. err
+            end
+        end
+    end
 end
+
+local function collect_checker(ctx,upstream)
+    local checker_rule = ctx[upstream] or ctx.default
+    checker_rule.u = upstream
+    -- peers info
+    checker_rule.primary_peers = preprocess_peers(ppeers)
+    checker_rule.backup_peers = preprocess_peers(bpeers)
+    checker_rule.version = 0
+
+    -- add to module layer cache
+    upstream_rules[upstream] = checker_rule
+end
+
+
+local function collect_checkers(ctx)
+    local upstreams = get_upstreams()
+    for _, up in ipairs(upstreams) do
+        collect_checker(ctx,up)
+    end
+
+    -- add default rule to module layer cache
+    upstream_rules["default"] = ctx.default
+end
+
 
 
 -- a loader load the init configs
@@ -804,21 +796,27 @@ end
 -- if type is "api",the loader will load the config json file first,and send the http request for fetch the new rules
 local function loader(ctx)
     debug("start loader...")
+    local ok,err
     local path = pkg_dfs.rules_file
-    local ok = pl_path.exists(path)
+    ok = pl_path.exists(path)
     if not ok then
         debug("rule file not exist,create it")
-        local ok, err = pl_file.write(path, pkg_dfs)
+        ok, err = pl_file.write(path, dkjson.encode({default = pkg_dfs},{indent = true}))
         if not ok then
             return nil, err
         end
     end
-    local rule, err = read_json(filepath)
+    ctx, err = read_json(path)
     if err then
         return nil, err
     end
     debug("load rules.work for valid")
-    return config_valid(rule)
+    ok,err =  config_valid(ctx.default)
+    if not ok then
+        return nil,err
+    end
+
+    return rule
 
 end
 
@@ -829,6 +827,9 @@ end
 -- set at the time of checkers created.If options had been modified,the Nginx
 -- need do a HUP reload or service Stop/Start to get this changed effected.
 function _M.run(opts)
+    if worker_id() ~= 0 then
+        return
+    end
     local ctx = new_tab(10, 10)
 
     local ok,err = loader(ctx)
@@ -840,7 +841,10 @@ function _M.run(opts)
     debug("load rules ok")
 
     -- load running-time vars like upstreams,peers,upstream's rule
-    spawn_checkers(ctx)
+    collect_checkers(ctx)
+
+    -- spawn checkers
+    spawn_checkers()
 end
 
 local ctx = {

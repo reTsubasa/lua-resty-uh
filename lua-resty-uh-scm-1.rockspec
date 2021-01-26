@@ -12,13 +12,19 @@ source = {
   branch = "scm"
 }
 dependencies = {
-  "penlight  == 1.7.0",
+  "penlight",
+  "dkjson",
+  "lua-resty-jit-uuid",
 }
 
 
 build = {
   type    = "builtin",
   modules = {
-    ["resty.uh"]    = "lib/resty/upstream/healthcheck.lua",
+    ["resty.uh"]    = "lib/resty/uh/uh.lua",
+    ["resty.core"]    = "lib/resty/uh/core.lua",
+    ["resty.pre_run"]    = "lib/resty/uh/pre_run.lua",
+    ["resty.settings"]    = "lib/resty/uh/settings.lua",
+    ["resty.valid"]    = "lib/resty/uh/valid.lua",
   }
 }

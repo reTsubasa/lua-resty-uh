@@ -1,7 +1,7 @@
 local pl_utils = require("pl.utils")
 local pl_path = require("pl.path")
 local pl_file = require("pl.file")
-local json = require("cjson.safe")
+local cjson = require("cjson.safe")
 local dkjson = require("dkjson")
 local stream_sock = ngx.socket.tcp
 local log = ngx.log
@@ -10,6 +10,7 @@ local WARN = ngx.WARN
 local DEBUG = ngx.DEBUG
 local sub = string.sub
 local fmt = string.format
+local len = string.len
 local find = string.find
 local re_find = ngx.re.find
 local re_gmatch = ngx.re.gmatch
@@ -44,7 +45,7 @@ end
 -- do shared dict check
 local m_shm = ngx.shared.healthcheck
 if not m_shm then
-    return nil,'set lua_shared_dict = "healthcheck" in "nginx.conf" is required'
+    return nil, 'set lua_shared_dict = "healthcheck" in "nginx.conf" is required'
 end
 
 local ok, new_tab = pcall(require, "table.new")
@@ -59,7 +60,7 @@ local get_primary_peers = upstream.get_primary_peers
 local get_backup_peers = upstream.get_backup_peers
 local get_upstreams = upstream.get_upstreams
 
-local function warn(...)
+local function warnlog(...)
     log(WARN, "healthcheck: ", ...)
 end
 
@@ -67,15 +68,12 @@ local function errlog(...)
     log(ERR, "healthcheck: ", ...)
 end
 
-local function debug(...)
-    -- print("debug mode: ", debug_mode)
-    if debug_mode then
-        log(DEBUG, "healthcheck: ", ...)
-    end
+local function debuglog(...)
+    log(DEBUG, "healthcheck: ", ...)
 end
 
 local upstream_rules = {}
-local upstream_checker_statuses ={}
+local upstream_checker_statuses = {}
 
 -- Tool functions
 
@@ -124,7 +122,7 @@ end
 -- todo:return the read file's md5 as second return
 local function read_json(p)
     local t, e = read(p)
-    if not t then
+    if not t or #t == 0 then
         return nil, e
     end
     local r, e = cjson.decode(t)
@@ -138,52 +136,57 @@ end
 
 -- module layer default settings
 local pkg_dfs = {
-    -- the default share dict for this package used
-    dict = "healthcheck", -- required
-    -- the path where config file stored
-    rules_file = "/etc/healthcheck/rules.json",
-    -- set default run mode "full"
-    -- all run mode canbe "full","debug","bypass"
-    mode = "full",
-    -- for the default checker's behavior,if "config.json"lost
-    type = "http",
-    http_req = "GET /status HTTP/1.0\r\nHost: foo.com\r\n\r\n",
-    timeout = 1000, -- 1sec
-    interval = 1000 * 2, -- 2secs
-    fall = 3,
-    rise = 2,
-    statuses = {200, 301, 302},
-    concurrency = 1,
+    node = {
+        -- the default share dict for this package used
+        dict = "healthcheck", -- required
+        -- the path where config file stored
+        rules_file = "/etc/healthcheck/rules.json",
+        -- set default run mode "full"
+        -- all run mode canbe "full","debug","bypass"
+        mode = "full"
+    },
+    checker = {
+        -- for the default checker's behavior,if "config.json"lost
+        type = "http",
+        http_req = "GET /status HTTP/1.0\r\nHost: foo.com\r\n\r\n",
+        timeout = 1000, -- 1sec
+        interval = 1000 * 2, -- 2secs
+        fall = 3,
+        rise = 2,
+        statuses = {200, 301, 302},
+        concurrency = 1
+    }
 }
 
 -- a key:{value_type,check_type,arg1,arg2,} nest-table for valid init settings
 -- value_type : string,number,boolean,table,etc
--- check_type : 
-        -- option:{choice1,choice2,...}
-        -- len:(min,max)
+-- check_type :
+-- option:{choice1,choice2,...}
+-- len:(min,max)
 
 local config_valid_def = {
-    dict = {"string","len",1,20},
-    rules_file = {"string","len",1,100},
-    mode = {"string","option",{"full","debug","bypass"}},
-    type = {"string","option",{"http","tcp"}},
-    timeout = {"number","len",1,1000*10},
-    interval = {"number","len",1,1000*60*60},
-    fall = {"number","len",0,100},
-    rise = {"number","len",0,100},
-    statuses = {"table","regex",[[^\d\d\d$]]},
-    concurrency = {"number","len",0,100},
-    enable = {"boolean"}
-
+    node = {
+        dict = {"string", "len", 1, 20},
+        rules_file = {"string", "len", 1, 100},
+        mode = {"string", "option", {"full", "debug", "bypass"}}
+    },
+    checker = {
+        type = {"string", "option", {"http", "tcp"}},
+        timeout = {"number", "len", 1, 1000 * 10},
+        interval = {"number", "len", 1, 1000 * 60 * 60},
+        fall = {"number", "len", 0, 100},
+        rise = {"number", "len", 0, 100},
+        statuses = {"table", "regex", [[^\d\d\d$]]},
+        concurrency = {"number", "len", 0, 100},
+        enable = {"boolean"}
+    }
 }
-
-
 
 -- @table rule the rule table hold all the init settings
 -- @return table rule if valid else return nil with error message
 local function config_valid(rules)
     if type(rules) ~= "table" then
-        return nil,"valid rules failed"
+        return nil, "valid rules failed"
     end
     for k, v in pairs(rules) do
         defs = config_valid_def[k]
@@ -192,12 +195,12 @@ local function config_valid(rules)
             v = "not_pre_defined"
         else
             if type(v) ~= defs[1] then
-                return nil,fmt("rules key:%s format error.expected:%s",k,defs[1])
+                return nil, fmt("rules key:%s format error.expected:%s", k, defs[1])
             end
             if defs[2] then
                 if defs[2] == "len" then
-                    if len(v)<def[3] or len(v)>def[4] then
-                        return nil,fmt("rules key:%s length error,expected at %s-%s",k,defs[3],defs[4])
+                    if len(v) < defs[3] or len(v) > defs[4] then
+                        return nil, fmt("rules key:%s length error,expected at %s-%s", k, defs[3], defs[4])
                     end
                 end
                 if defs[2] == "option" then
@@ -208,22 +211,22 @@ local function config_valid(rules)
                         end
                     end
                     if not flag then
-                        return nil,fmt("rule key:%s value error,expected %s",k,concat(defs[3]))
+                        return nil, fmt("rule key:%s value error,expected %s", k, concat(defs[3]))
                     end
                 end
                 if defs[2] == "regex" then
-                    local h = re_find(v,defs[3],"imjo")
-                    if not h then
-                        return nil,fmt("rule key:%s not as expected.",k)
+                    for _, value in ipairs(v) do
+                        local h, sp, err = re_find(value, defs[3], "imjo")
+                        if not h then
+                            return nil, fmt("rule key:%s value: %s not as expected.", k, value)
+                        end
                     end
                 end
             end
         end
-        
     end
     return rules
 end
-
 
 -- load rule.json file from the give path and name args
 -- @string path absolute path of the directory
@@ -249,7 +252,6 @@ local function load_config(path, name)
     end
     return config_valid(rule)
 end
-
 
 local function preprocess_peers(peers)
     local n = #peers
@@ -277,14 +279,13 @@ local function load_upstream_config(ctx)
 
     local bpeers, err = get_backup_peers(u)
     if not bpeers then
-        return nil,  u .. "failed to get backup peers: " .. err
+        return nil, u .. "failed to get backup peers: " .. err
     end
 
     ctx.primary_peers = preprocess_peers(ppeers)
     ctx.backup_peers = preprocess_peers(bpeers)
     ctx.version = 0
     return true
-
 end
 local function gen_peer_key(prefix, u, is_backup, id)
     if is_backup then
@@ -358,11 +359,10 @@ local function peer_fail(ctx, is_backup, id, peer)
     end
 
     -- print("ctx fall: ", ctx.fall, ", peer down: ", peer.down,
-          -- ", fails: ", fails)
+    -- ", fails: ", fails)
 
     if not peer.down and fails >= ctx.fall then
-        warn("peer ", peer.name, " is turned down after ", fails,
-                " failure(s)")
+        warnlog("peer ", peer.name, " is turned down after ", fails, " failure(s)")
         peer.down = true
         set_peer_down_globally(ctx, is_backup, id, true)
     end
@@ -414,8 +414,7 @@ local function peer_ok(ctx, is_backup, id, peer)
     end
 
     if peer.down and succ >= ctx.rise then
-        warn("peer ", peer.name, " is turned up after ", succ,
-                " success(es)")
+        warnlog("peer ", peer.name, " is turned up after ", succ, " success(es)")
         peer.down = nil
         set_peer_down_globally(ctx, is_backup, id, nil)
     end
@@ -458,40 +457,33 @@ local function check_peer(ctx, id, peer, is_backup)
 
     local bytes, err = sock:send(req)
     if not bytes then
-        return peer_error(ctx, is_backup, id, peer,
-                          "failed to send request to ", name, ": ", err)
+        return peer_error(ctx, is_backup, id, peer, "failed to send request to ", name, ": ", err)
     end
 
     local status_line, err = sock:receive()
     if not status_line then
-        peer_error(ctx, is_backup, id, peer,
-                   "failed to receive status line from ", name, ": ", err)
+        peer_error(ctx, is_backup, id, peer, "failed to receive status line from ", name, ": ", err)
         if err == "timeout" then
-            sock:close()  -- timeout errors do not close the socket.
+            sock:close() -- timeout errors do not close the socket.
         end
         return
     end
 
     if statuses then
-        local from, to, err = re_find(status_line,
-                                      [[^HTTP/\d+\.\d+\s+(\d+)]],
-                                      "joi", nil, 1)
+        local from, to, err = re_find(status_line, [[^HTTP/\d+\.\d+\s+(\d+)]], "joi", nil, 1)
         if err then
             errlog("failed to parse status line: ", err)
         end
 
         if not from then
-            peer_error(ctx, is_backup, id, peer,
-                       "bad status line from ", name, ": ",
-                       status_line)
+            peer_error(ctx, is_backup, id, peer, "bad status line from ", name, ": ", status_line)
             sock:close()
             return
         end
 
         local status = tonumber(sub(status_line, from, to))
         if not statuses[status] then
-            peer_error(ctx, is_backup, id, peer, "bad status code from ",
-                       name, ": ", status)
+            peer_error(ctx, is_backup, id, peer, "bad status code from ", name, ": ", status)
             sock:close()
             return
         end
@@ -526,21 +518,17 @@ local function check_peers(ctx, peers, is_backup)
             nthr = n - 1
             threads = new_tab(nthr, 0)
             for i = 1, nthr do
-
                 if debug_mode then
-                    debug("spawn a thread checking ",
-                          is_backup and "backup" or "primary", " peer ", i - 1)
+                    debug("spawn a thread checking ", is_backup and "backup" or "primary", " peer ", i - 1)
                 end
 
                 threads[i] = spawn(check_peer, ctx, i - 1, peers[i], is_backup)
             end
             -- use the current "light thread" to run the last task
             if debug_mode then
-                debug("check ", is_backup and "backup" or "primary", " peer ",
-                      n - 1)
+                debug("check ", is_backup and "backup" or "primary", " peer ", n - 1)
             end
             check_peer(ctx, n - 1, peers[n], is_backup)
-
         else
             local group_size = ceil(n / concur)
             nthr = ceil(n / group_size) - 1
@@ -559,13 +547,17 @@ local function check_peers(ctx, peers, is_backup)
                 end
 
                 if debug_mode then
-                    debug("spawn a thread checking ",
-                          is_backup and "backup" or "primary", " peers ",
-                          from - 1, " to ", to - 1)
+                    debug(
+                        "spawn a thread checking ",
+                        is_backup and "backup" or "primary",
+                        " peers ",
+                        from - 1,
+                        " to ",
+                        to - 1
+                    )
                 end
 
-                threads[i] = spawn(check_peer_range, ctx, from, to, peers,
-                                   is_backup)
+                threads[i] = spawn(check_peer_range, ctx, from, to, peers, is_backup)
                 from = from + group_size
                 if rest == 0 then
                     break
@@ -575,8 +567,7 @@ local function check_peers(ctx, peers, is_backup)
                 local to = from + rest - 1
 
                 if debug_mode then
-                    debug("check ", is_backup and "backup" or "primary",
-                          " peers ", from - 1, " to ", to - 1)
+                    debug("check ", is_backup and "backup" or "primary", " peers ", from - 1, " to ", to - 1)
                 end
 
                 check_peer_range(ctx, from, to, peers, is_backup)
@@ -637,7 +628,6 @@ local function check_peers_updates(ctx)
         if ctx.version > 0 then
             ctx.new_version = true
         end
-
     elseif ctx.version < ver then
         debug("upgrading peers version to ", ver)
         upgrade_peers_version(ctx, ctx.primary_peers, false)
@@ -659,7 +649,7 @@ local function get_lock(ctx)
         if err == "exists" then
             return nil
         end
-        errlog("failed to add key \"", key, "\": ", err)
+        errlog('failed to add key "', key, '": ', err)
         return nil
     end
     return true
@@ -694,7 +684,6 @@ local function do_check(ctx)
     end
 end
 
-
 local function update_upstream_checker_status(ctx, success)
     local u = ctx.upstream
 
@@ -712,8 +701,7 @@ local function update_upstream_checker_status(ctx, success)
     upstream_checker_statuses[u] = cnt
 end
 
-
-local function check(premature,ctx)
+local function check(premature, ctx)
     if ctx.enable then
         local ok, err = pcall(do_check, ctx)
         if not ok then
@@ -733,34 +721,6 @@ end
 
 -- create the checkers by give options of each upstreams
 local function spawn_checkers(ctx)
-    local upstreams = get_upstreams()
-    for i, upstream in ipairs(upstreams) do
-        -- load upstream rule
-        local u_rule,err = load_config(ctx.path, upstream..".json")
-        if err then
-            warn(upstream,":load rule failed,Use default settings.")
-        end
-        
-        -- load upstream settings
-        ctx.upstream = upstream
-
-        local ok,err = load_upstream_config(ctx)
-        if not ok then
-            return nil,err
-        end
-        if ctx.mode == "debug" then
-            check(nil, ctx)
-        else
-            local ok, err = new_timer(0, check, ctx)
-            if not ok then
-                return nil, "failed to create timer: " .. err
-            end
-        end
-    
-        return true
-            
-    end
-
     for name, rule in pairs(upstream_rules) do
         if name ~= "default" then
             local ok, err = new_timer(0, check, rule)
@@ -771,62 +731,130 @@ local function spawn_checkers(ctx)
     end
 end
 
-local function collect_checker(ctx,upstream)
-    local checker_rule = ctx[upstream] or ctx.default
-    checker_rule.upstream = upstream
+local function collect_checker(rules, name)
+    if name == "node" then
+        return true
+    end
+
+    local checker_rule = rules[name] or rules.default
+    checker_rule.upstream = name
     -- peers info
+
+    local ppeers, err = get_primary_peers(name)
+    if not ppeers then
+        return nil, "failed to get primary peers: " .. err
+    end
+
+    local bpeers, err = get_backup_peers(name)
+    if not bpeers then
+        return nil, "failed to get backup peers: " .. err
+    end
+
     checker_rule.primary_peers = preprocess_peers(ppeers)
     checker_rule.backup_peers = preprocess_peers(bpeers)
     checker_rule.version = 0
 
     -- add to module layer cache
-    upstream_rules[upstream] = checker_rule
+    upstream_rules[name] = checker_rule
+
+    debug(dkjson.encode(upstream_rules, {indent = true}))
+    return true
 end
 
-
-local function collect_checkers(ctx)
+local function collect_checkers(rules)
     local upstreams = get_upstreams()
+    if #upstreams == 0 then
+        errlog("number of upstream: ", #upstreams)
+    end
     for _, up in ipairs(upstreams) do
-        collect_checker(ctx,up)
+        debug("collect upstream: ", up)
+        local ok, err = collect_checker(rules, up)
+        if not ok then
+            return nil, err
+        end
     end
 
+    -- debug(dkjson.encode(rules.default,{indent = true}))
     -- add default rule to module layer cache
-    upstream_rules["default"] = ctx.default
+    upstream_rules["node"] = rules.default
 end
 
-
+local function write_default_config(path)
+    local ok, err = write(path, {default = pkg_dfs}, {pp = true})
+    if not ok then
+        errlog("create default rule file failed.", err)
+        return nil, err
+    end
+    return true
+end
 
 -- a loader load the init configs
 -- as the config source,json format file and http request endpoint(API) is supported.
 -- type:file will be the default source.and the default file will located at /etc/healthcheck/rules.json
 -- if not type specifed and default file is not existed,a new file will be created with default settings
 -- if type is "api",the loader will load the config json file first,and send the http request for fetch the new rules
-local function loader(ctx)
+local function loader()
     debug("start loader...")
-    local ok,err
+    local ok, err
     local path = pkg_dfs.rules_file
     ok = pl_path.exists(path)
     if not ok then
         debug("rule file not exist,create it")
-        ok, err = pl_file.write(path, dkjson.encode({default = pkg_dfs},{indent = true}))
+        debug("path:", pl_path.dirname(path))
+        ok = pl_path.exists(pl_path.dirname(path))
         if not ok then
+            ok, err = pl_path.mkdir(pl_path.dirname(path))
+            if not ok then
+                errlog("create directory failed.path:", path, err)
+            end
+        end
+        debug("create directory sucess")
+        ok, err = write(path, {default = pkg_dfs}, {pp = true})
+        if not ok then
+            errlog("create default rule file failed.", err)
             return nil, err
         end
     end
-    ctx, err = read_json(path)
-    if err then
+
+    -- load rules
+    debug("load rules...")
+    local rules
+    local retry = 1
+    rules, err = read_json(path)
+    while (not rules) and (retry <= 3) do
+        debug("retry: ", retry, " read config file: ", path)
+
+        retry = retry + 1
+        local ok = write_default_config(path)
+        if not ok then
+            return nil, "write default config failed"
+        end
+        debug("write default config succeed")
+        rules, err = read_json(path)
+    end
+    if not rules then
         return nil, err
     end
+
+    local rules, err = read_json(path)
+    if err then
+        local ok = write_default_config(path)
+        if not ok then
+            return nil, "write default config failed"
+        end
+    end
     debug("load rules.work for valid")
-    ok,err =  config_valid(ctx.default)
-    if not ok then
-        return nil,err
+    if not rules.default then
+        rules.default = pkg_dfs
     end
 
-    return rule
+    ok, err = config_valid(rules.default)
+    if not ok then
+        return nil, err
+    end
 
+    return rules
 end
-
 
 -- Upstream health checker start point
 -- The checker's default behavior can be change by the given ops tables
@@ -834,27 +862,26 @@ end
 -- set at the time of checkers created.If options had been modified,the Nginx
 -- need do a HUP reload or service Stop/Start to get this changed effected.
 function _M.run(opts)
-    errlog(worker_id())
     if worker_id() ~= 0 then
         return
     end
 
-    local ctx = new_tab(10, 10)
-
-    local ok,err = loader(ctx)
-    if not ok then
-        errlog("init upstream health checker failed:",err)
+    local rules, err = loader()
+    if not rules then
+        errlog("init upstream health checker failed:", err)
         error(err)
     end
 
     debug("load rules ok")
+    -- debug(dkjson.encode(rules,{indent = true}))
 
     -- load running-time vars like upstreams,peers,upstream's rule
-    collect_checkers(ctx)
+    collect_checkers(rules)
 
-    errlog(cjson.encode(upstream_rules))
+    -- debug(dkjson.encode(upstream_rules,{indent = true}))
     -- spawn checkers
-    spawn_checkers()
+    spawn_checkers(ctx)
+    return true
 end
 
 -- local ctx = {
